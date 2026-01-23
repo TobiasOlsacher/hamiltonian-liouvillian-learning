@@ -98,7 +98,7 @@ class MeasurementSetting:
     @nshots.setter
     def nshots(self, value):
         if value is not None:
-            if not (value>=0 or value==-1):
+            if not (value >= 0 or value == -1):
                 raise TypeError("nshots={}, but must be a non-negative integer or -1.".format(value))
         self._nshots = value
     @property
@@ -125,18 +125,18 @@ class MeasurementSetting:
                 other: MeasurementSetting
                 ) -> bool:
         """
-        Returns True if self and other have the same intial_state, simulation_time and measurement_basis.
+        Returns True if self and other have the same initial_state, simulation_time and measurement_basis.
         Nshots and exact_expvals are not considered.
         """
         if not isinstance(other, MeasurementSetting):
             return False
         return self.initial_state == other.initial_state and self.simulation_time == other.simulation_time and self.measurement_basis == other.measurement_basis
     
-    def __neq__(self, 
+    def __ne__(self, 
                 other: MeasurementSetting
                 ) -> bool:
         """
-        Returns True if self and other have different intial_state, simulation_time or measurement_basis.
+        Returns True if self and other have different initial_state, simulation_time or measurement_basis.
         """
         return not self.__eq__(other)
 

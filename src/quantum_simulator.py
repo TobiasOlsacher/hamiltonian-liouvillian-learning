@@ -234,14 +234,14 @@ class QuantumSimulator:
         # setup data_set
         dataset = DataSet(Nions=self.Nions)
         # split into paulis
-        pops_tmp = [PauliOperator(N=qop.N, type=pop.type) for pop in qop.terms.values() if pop.type!="I"*qop.N]
+        pops_tmp = [PauliOperator(N=qop.N, pauli_type=pop.pauli_type) for pop in qop.terms.values() if pop.pauli_type!="I"*qop.N]
         for time in times:
             # get final state from data_set
             final_state = self.data_set.data[(initial_state, time)].final_state
             # evaluate expectation value
             pops_vals = get_expvals_QuTip(final_state, pops_tmp)
             # add to data_set
-            exact_expvals = {pops_tmp[inx].type : [pops_vals[inx]] for inx in range(len(pops_tmp))}
+            exact_expvals = {pops_tmp[inx].pauli_type : [pops_vals[inx]] for inx in range(len(pops_tmp))}
             data_entry = DataEntry(Nions=self.Nions, initial_state=initial_state, simulation_time=time, exact_expvals=exact_expvals)
             dataset.add_data_entry(data_entry)
             if save_data:
@@ -369,7 +369,7 @@ class QuantumSimulator:
         #--------------------------------
         ### STEP 3 ### get data from final states
         # create empty data_set to be filled with measurement data
-        dataset = DataSet(Nions=self.Nions, simulator=self)
+        dataset = DataSet(Nions=self.Nions)
         ## loop over times
         for tinx, time in enumerate(times):
             tm21 = tm.time()
@@ -391,10 +391,10 @@ class QuantumSimulator:
             ### get the exact expectation values from the final state
             exact_expvals = {}
             if qop.terms != {}:
-                pops = [PauliOperator(N=qop.N, type=pop.type) for pop in qop.terms.values()] # if pop.type!="I"*qop.N]
+                pops = [PauliOperator(N=qop.N, pauli_type=pop.pauli_type) for pop in qop.terms.values()] # if pop.pauli_type!="I"*qop.N]
                 pops_vals = get_expvals_QuTip(final_state, pops)
                 # add to data_set
-                exact_expvals = {pops[inx].type : [pops_vals[inx]] for inx in range(len(pops))}
+                exact_expvals = {pops[inx].pauli_type : [pops_vals[inx]] for inx in range(len(pops))}
                 data_entry = DataEntry(Nions=self.Nions, initial_state=initial_state, simulation_time=time, exact_expvals=exact_expvals)
                 dataset.add_data_entry(data_entry)
             tm22 = tm.time()
@@ -710,7 +710,7 @@ def getFinalState_QuTip(Hamiltonian: QuantumOperator,
     # -------------------------------------
     ### STEP 2 ### create QuTip objects for Hamiltonian and dissipators
     ## Hamiltonian
-    Hamiltonian_QuTip = sum([pauliop.coeff * getPauliOp_QuTip(pauliop.type) for pauliop in Hamiltonian.terms.values()])
+    Hamiltonian_QuTip = sum([pauliop.coeff * getPauliOp_QuTip(pauliop.pauli_type) for pauliop in Hamiltonian.terms.values()])
     ## dissipator
     dissipators_QuTip = None
     if dissipators is not None:
@@ -879,10 +879,10 @@ def to_QuTip(operator: QuantumOperator | PauliOperator | Dissipator) -> qt.Qobj:
     # ------------------------------
     ## convert Dissipator    
     if isinstance(operator, Dissipator):
-        pop1_type = operator.type[0]
-        pop2_type = operator.type[1]
-        pop1 = PauliOperator(N=operator.N, type=pop1_type)
-        pop2 = PauliOperator(N=operator.N, type=pop2_type)
+        pop1_type = operator.diss_type[0]
+        pop2_type = operator.diss_type[1]
+        pop1 = PauliOperator(N=operator.N, pauli_type=pop1_type)
+        pop2 = PauliOperator(N=operator.N, pauli_type=pop2_type)
         dissipator_QuTip1 = qt.lindblad_dissipator(to_QuTip(pop1), to_QuTip(pop2))
         dissipator_QuTip2 = qt.lindblad_dissipator(to_QuTip(pop2), to_QuTip(pop1))
         operator_QuTip = operator.coeff * (dissipator_QuTip1 + dissipator_QuTip2)
@@ -1394,18 +1394,17 @@ def get_measurement_settings(state: QuantumState,
         list of measurement settings
     """
     measurement_settings = []
-    for tinx, time in enumerate(simulation_times):
-        for time in simulation_times:
-            for base in bases:
-                if nshots_ratio_integrand and time not in [simulation_times[0],simulation_times[-1]]:
-                    nshots_tmp = nshots[(time,base)]/len(simulation_times)
-                else:
-                    nshots_tmp = nshots[(time,base)]
-                ms = MeasurementSetting(initial_state=state, simulation_time=time, measurement_basis=base, nshots=nshots_tmp)
-                measurement_settings.append(ms)
-            if required_operator is not None:
-                ms = MeasurementSetting(initial_state=state, simulation_time=time, exact_observables=required_operator)
-                measurement_settings.append(ms)
+    for time in simulation_times:
+        for base in bases:
+            if nshots_ratio_integrand and time not in [simulation_times[0],simulation_times[-1]]:
+                nshots_tmp = nshots[(time,base)]/len(simulation_times)
+            else:
+                nshots_tmp = nshots[(time,base)]
+            ms = MeasurementSetting(initial_state=state, simulation_time=time, measurement_basis=base, nshots=nshots_tmp)
+            measurement_settings.append(ms)
+        if required_operator is not None:
+            ms = MeasurementSetting(initial_state=state, simulation_time=time, exact_observables=required_operator)
+            measurement_settings.append(ms)
     # --------------------------------------------------------
     return measurement_settings
 

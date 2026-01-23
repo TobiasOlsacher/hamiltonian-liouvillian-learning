@@ -163,7 +163,7 @@ class QuantumState:
                 raise TypeError("state_preparation_label is {}, but must be a string.".format(value))
             # check if lowercase
             if not value.islower():
-                raise ValueError("state_preparation_label is {}, but must be not lowercase.".format(value))
+                raise ValueError("state_preparation_label is {}, but must be lowercase.".format(value))
         self._state_preparation_label = value
     @property
     def state_preparation_error(self):
@@ -354,7 +354,7 @@ class QuantumState:
         ## get list of Pauli operators
         pops = [qop]
         if isinstance(qop, QuantumOperator):
-            pops = [PauliOperator(N=qop.N, type=pop.type) for pop in qop.terms.values()] # if pop.type!="I"*qop.N]
+            pops = [PauliOperator(N=qop.N, pauli_type=pop.pauli_type) for pop in qop.terms.values()] # if pop.pauli_type!="I"*qop.N]
         # ---------------------------------------------------
         ### STEP 1 ### basis state without state preparation
         if self.qutip_state is None and self.state_preparation is None and self.state_preparation_error is None:
@@ -362,7 +362,7 @@ class QuantumState:
             excitations = self.excitations
             pops_vals = []
             for pop in pops:
-                pop_type = pop.type
+                pop_type = pop.pauli_type
                 val = 1
                 for inx in range(len(pop_type)):
                     if pop_type[inx] != "I":
@@ -373,7 +373,7 @@ class QuantumState:
                             if excitations[inx] == "0":
                                 val *= -1
                 pops_vals.append(pop.coeff*val)
-            exact_expvals = {pops[inx].type : [pops_vals[inx]] for inx in range(len(pops))}
+            exact_expvals = {pops[inx].pauli_type : [pops_vals[inx]] for inx in range(len(pops))}
         # ---------------------------------------------------
         ### STEP 2 ### basis state with state preparation or general qutip state
         else:
@@ -381,7 +381,7 @@ class QuantumState:
             state_qt = self.to_QuTip()
             ## calculate the exact expectation values
             pops_vals = get_expvals_QuTip(state_qt, pops)
-            exact_expvals = {pops[inx].type : [pops_vals[inx]] for inx in range(len(pops))}
+            exact_expvals = {pops[inx].pauli_type : [pops_vals[inx]] for inx in range(len(pops))}
         # ---------------------------------------------------
         return exact_expvals
 

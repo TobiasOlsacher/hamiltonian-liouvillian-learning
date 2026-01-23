@@ -54,7 +54,7 @@ def get_hamiltonian(Nions: int,
         The Hamiltonian as a QuantumOperator object 
         with terms given by a dict in Hamiltonian.terms.
     """
-    if cutoff == None:
+    if cutoff is None:
         cutoff = Nions
     fields = ["Bx", "By", "Bz"]
     couplings2 = ["Jxx", "Jyy", "Jzz", "Jxy", "Jxz", "Jyz"]
@@ -109,7 +109,7 @@ def get_hamiltonian(Nions: int,
                 paulistr[i] = fieldstr[1].upper()
                 if flip_left_to_right:
                     paulistr = paulistr[::-1]
-                pauliop = PauliOperator(N=Nions, coeff=complex(field[i]), type="".join(paulistr))
+                pauliop = PauliOperator(N=Nions, coeff=complex(field[i]), pauli_type="".join(paulistr))
                 Ham.add_term(pauliop)
     ### 2-qubit couplings
     for couplingstr in couplings2:
@@ -125,7 +125,7 @@ def get_hamiltonian(Nions: int,
                         paulistr[j] = couplingstr[2].upper()
                         if flip_left_to_right:
                             paulistr = paulistr[::-1]
-                        pauliop = PauliOperator(N=Nions, coeff=complex(coupling[i,j]), type="".join(paulistr))
+                        pauliop = PauliOperator(N=Nions, coeff=complex(coupling[i,j]), pauli_type="".join(paulistr))
                         Ham.add_term(pauliop)
     ### 3-qubit couplings
     for couplingstr in couplings3:
@@ -143,7 +143,7 @@ def get_hamiltonian(Nions: int,
                             paulistr[k] = couplingstr[3].upper()
                             if flip_left_to_right:
                                 paulistr = paulistr[::-1]
-                            pauliop = PauliOperator(N=Nions, coeff=complex(coupling[i,j,k]), type="".join(paulistr))
+                            pauliop = PauliOperator(N=Nions, coeff=complex(coupling[i,j,k]), pauli_type="".join(paulistr))
                             Ham.add_term(pauliop)
     # -----------------------------------
     if len(Ham.terms) == 0:
@@ -197,15 +197,15 @@ def get_dissipators(Nions: int,
     for disstype, Gdiss in dissipation_rates.items():
         disschar = disstype[1].upper()
         if np.allclose(Gdiss, np.zeros((Nions,Nions))):
-            print("Warning: {} is zero matrix. Skipping...".format(disstype))
+            print(f"Warning: {disstype} is zero matrix. Skipping...")
             continue
         for inx,iny in it.combinations_with_replacement(range(Nions),2):
-            if Gdiss[inx,iny] in [0,None]:
+            if Gdiss[inx,iny] == 0 or Gdiss[inx,iny] is None:
                 continue
             if (cutoff>0 and np.abs(inx-iny)>cutoff) or (cutoff<0 and np.abs(inx-iny)<=-cutoff):
                 continue
             dtype = ["I"*inx + disschar + "I"*(Nions-inx-1), "I"*iny + disschar + "I"*(Nions-iny-1)]
-            diss = Dissipator(N=Nions, type=dtype, coeff=Gdiss[inx,iny])
+            diss = Dissipator(N=Nions, diss_type=dtype, coeff=Gdiss[inx,iny])
             Dsim.append(diss)
     # -----------------------------------
     if len(Dsim) == 0:

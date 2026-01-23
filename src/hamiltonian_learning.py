@@ -6,7 +6,7 @@ It contains the following classes:
     - Constraint
         A class for defining constraints used for learning.
     - Ansatz
-        A class for defining the Hamiltonian and Liouvillain ansatz used for learning.
+        A class for defining the Hamiltonian and Liouvillian ansatz used for learning.
 
 The learning has high memory requirement (RAM) because of all the saved result attributes (can be reduced!)
 """
@@ -73,7 +73,7 @@ class Result:
         self.dissipators_learned = kwargs.get("dissipators_learned", None)   # list of dimensions parametrizations*samples
         self.gamma_landscape_grid = kwargs.get("gamma_landscape_grid", None)   # list of different parametrizations
         self.gamma_landscape_vals = kwargs.get("gamma_landscape_vals", None)   # list of different parametrizations
-        self.gamma_landscale_sol = kwargs.get("gamma_landscale_sol", None)   # list of different parametrizations
+        self.gamma_landscape_sol = kwargs.get("gamma_landscape_sol", None)   # list of different parametrizations
 
 
 
@@ -150,7 +150,7 @@ class Constraint:
     def simulation_times(self, value):
         if value is not None:
             # check if value is a list
-            if type(value) not in [list, np.ndarray]:
+            if not isinstance(value, (list, np.ndarray)):
                 raise TypeError("simulation_times must be a list")
             # check if times are sorted
             if not np.all(np.diff(value) > 0):
@@ -177,10 +177,10 @@ class Constraint:
     def nshots_ratio_integrand(self, value):
         # check if value is a positive float
         if value is not None:
-            if type(value) not in [int, float, np.float64]:
-                raise TypeError("nshots_ratio_integrand must = {}, but must be a float".format(value))
+            if not isinstance(value, (int, float, np.float64)):
+                raise TypeError("nshots_ratio_integrand = {}, but must be a float".format(value))
             if value <= 0:
-                raise ValueError("nshots_ratio_integrand must = {}, but must be positive".format(value))
+                raise ValueError("nshots_ratio_integrand = {}, but must be positive".format(value))
         self._nshots_ratio_integrand = value
     ### ------------------ ###
     ### Constraint methods ###
@@ -206,7 +206,7 @@ class Constraint:
             if getattr(self, attr) != getattr(other, attr):
                 return False
         for attr in ["simulation_times"]:
-            if np.allclose(getattr(self, attr), getattr(other, attr)) == False:
+            if not np.allclose(getattr(self, attr), getattr(other, attr)):
                 return False
         return True
     
@@ -421,7 +421,7 @@ class Ansatz:
         self.ansatz_operator = ansatz_operator
         self.ansatz_dissipators = ansatz_dissipators
         self.parametrization = parametrization
-        self.data_set = DataSet(Nions) if data_set is None else data_set
+        self.data_set = DataSet(Nions=Nions) if data_set is None else data_set
         self.constraints = constraints
         self.constraint_tensors = {} if constraint_tensors is None else constraint_tensors
         self.gamma_bounds = gamma_bounds
@@ -566,8 +566,8 @@ class Ansatz:
         """
         if constraints is None:
             constraints = self.constraints
-        if nshots>1000:
-            print("Warning: Sampling data points for nshots={}. May take a while.".format(nshots))
+        if nshots > 1000:
+            print(f"Warning: Sampling data points for nshots={nshots}. May take a while.")
         #--------------------------------------------------------
         ### STEP 1 ### determine required measurement settings
         measurement_settings = self.get_measurement_settings(method, constraints, nshots, suggested_measurement_bases=suggested_measurement_bases)
@@ -922,7 +922,7 @@ class Ansatz:
                                 eval_list[nsinx,sampinx] = np.real(evalval)
                                 var_eval_list[nsinx,sampinx] = np.real(var_evalval)
                         # add to evaluated terms
-                        evaluated_terms[term.type] = [eval_list,var_eval_list]
+                        evaluated_terms[term.pauli_type] = [eval_list,var_eval_list]
                     ### evaluate constraint matrix elements
                     for terminx, term in enumerate(self.ansatz_operator.terms.values()):
                         for dissinx, diss in enumerate(self.ansatz_dissipators):
@@ -931,8 +931,8 @@ class Ansatz:
                                 continue
                             dissterm.remove_zero_coeffs()
                             ## evaluate dissterm from evaluated terms
-                            mo3kzval_list = np.sum([np.multiply(evaluated_terms[term.type][0],term.coeff) for term in dissterm.terms.values()],axis=0)
-                            var_mo3kzval_list = np.sum([np.multiply(evaluated_terms[term.type][1],term.coeff) for term in dissterm.terms.values()],axis=0)
+                            mo3kzval_list = np.sum([np.multiply(evaluated_terms[term.pauli_type][0],term.coeff) for term in dissterm.terms.values()],axis=0)
+                            var_mo3kzval_list = np.sum([np.multiply(evaluated_terms[term.pauli_type][1],term.coeff) for term in dissterm.terms.values()],axis=0)
                             # check if values are real
                             if not np.isclose(mo3kzval_list.imag,0):
                                 print("Imaginary part of mo3kzval is not zero, but " + str(np.round(mo3kzval_list.imag,3)) + ".")
@@ -1000,9 +1000,9 @@ class Ansatz:
                 qop_terms = list(qop.terms.values())
                 # expvals shape = (qops,nshots,samples)
                 expvals, varvals = self.data_set.evaluate_observable(state=state,time=time,qop_list=qop_terms,nshots=nshots,Gaussian_noise=Gaussian_noise,use_exact_initial_values=use_exact_initial_values,n_resampling=n_resampling,resampling_replace=resampling_replace,evaluate_variance=evaluate_variance,min_nshots_per_term=min_nshots_per_term)
-                expvals_endpoints[key] = {term.type:expvals[term_inx,:,:] for term_inx,term in enumerate(qop_terms)}
+                expvals_endpoints[key] = {term.pauli_type:expvals[term_inx,:,:] for term_inx,term in enumerate(qop_terms)}
                 if evaluate_variance:
-                    varvals_endpoints[key] = {term.type:varvals[term_inx,:,:] for term_inx,term in enumerate(qop_terms)}  
+                    varvals_endpoints[key] = {term.pauli_type:varvals[term_inx,:,:] for term_inx,term in enumerate(qop_terms)}  
             if print_timers:
                 tm4 = tm.time()
                 pstr_get_con_tens = "time for pre-evaluate required terms for endpoints = {}".format(tm4-tm3)
@@ -1019,15 +1019,15 @@ class Ansatz:
                 time1 = times[0]
                 time2 = times[-1]
                 # get expectation values from data set shape exp2_list = (nshots,samples)
-                exp2_list = np.sum([term.coeff*expvals_endpoints[(state,time2)][term.type] for term in constraint_operator.terms.values()],axis=0)
-                exp1_list = np.sum([term.coeff*expvals_endpoints[(state,time1)][term.type] for term in constraint_operator.terms.values()],axis=0)
+                exp2_list = np.sum([term.coeff*expvals_endpoints[(state,time2)][term.pauli_type] for term in constraint_operator.terms.values()],axis=0)
+                exp1_list = np.sum([term.coeff*expvals_endpoints[(state,time1)][term.pauli_type] for term in constraint_operator.terms.values()],axis=0)
                 balval_list = np.subtract(exp2_list, exp1_list)
                 # save to constraint tensor
                 constraint_vector_list[:,:,cinx] = np.real(balval_list)
                 ### get variances from data set shape var2_list = (nshots,samples)
                 if evaluate_variance:
-                    var2_list = np.sum([term.coeff**2*varvals_endpoints[(state,time2)][term.type] for term in constraint_operator.terms.values()],axis=0)
-                    var1_list = np.sum([term.coeff**2*varvals_endpoints[(state,time1)][term.type] for term in constraint_operator.terms.values()],axis=0)
+                    var2_list = np.sum([term.coeff**2*varvals_endpoints[(state,time2)][term.pauli_type] for term in constraint_operator.terms.values()],axis=0)
+                    var1_list = np.sum([term.coeff**2*varvals_endpoints[(state,time1)][term.pauli_type] for term in constraint_operator.terms.values()],axis=0)
                     # TODO variances wrong?
                     var_balval_list = np.add(var2_list, var1_list)
                     var_constraint_vector_list[:,:,cinx] = np.real(var_balval_list)
@@ -1072,9 +1072,9 @@ class Ansatz:
                     tm12 = tm.time()
                     pstr_get_con_tens = "key: {}({}), time for evaluate required terms for integrand = {}, rest time estimate: {}".format(key[0].str(), key[1] ,tm12-tm11,(tm12-tm11)*(len(required_terms_integrand)-keyinx))
                     ic(pstr_get_con_tens)
-                expvals_integrand[key] = {term.type:expvals[term_inx,:,:] for term_inx,term in enumerate(qop_terms)}
+                expvals_integrand[key] = {term.pauli_type:expvals[term_inx,:,:] for term_inx,term in enumerate(qop_terms)}
                 if evaluate_variance:
-                    varvals_integrand[key] = {term.type:varvals[term_inx,:,:] for term_inx,term in enumerate(qop_terms)}
+                    varvals_integrand[key] = {term.pauli_type:varvals[term_inx,:,:] for term_inx,term in enumerate(qop_terms)}
                 keyinx += 1
             if print_timers:
                 tm6 = tm.time()
@@ -1105,7 +1105,7 @@ class Ansatz:
                 required_terms_constraint = list(required_terms_constraint.terms.values())
                 #-------------------
                 ### pre-evaluate all integrals
-                # evaluated_integrals[term.type] = [eval_list,var_eval_list]
+                # evaluated_integrals[term.pauli_type] = [eval_list,var_eval_list]
                 # shape eval_list = (nshots,samples)
                 evaluated_integrals = {}
                 for terminx, term in enumerate(required_terms_constraint):
@@ -1114,9 +1114,9 @@ class Ansatz:
                     for nsinx in range(len(nshots)):
                         for sampinx in range(n_resampling[1]):
                             ## get expvals and varvals for integrand
-                            expvals = np.array([expvals_integrand[(state,time)][term.type][nsinx,sampinx] for time in times_integrand])
+                            expvals = np.array([expvals_integrand[(state,time)][term.pauli_type][nsinx,sampinx] for time in times_integrand])
                             if evaluate_variance:
-                                varvals = np.array([varvals_integrand[(state,time)][term.type][nsinx,sampinx] for time in times_integrand])
+                                varvals = np.array([varvals_integrand[(state,time)][term.pauli_type][nsinx,sampinx] for time in times_integrand])
                             ## remove nan entries from integrand values and corresponding times
                             non_nan_indices = np.where(~np.isnan(expvals.real) & ~np.isnan(expvals.imag))[0]
                             times_integrand = np.array(times)[non_nan_indices]
@@ -1150,7 +1150,7 @@ class Ansatz:
                                     var_evalval = np.real(var_evalval)
                                 var_eval_list[nsinx,sampinx] = var_evalval
                     ## add to evaluated terms
-                    evaluated_integrals[term.type] = [eval_list,var_eval_list]
+                    evaluated_integrals[term.pauli_type] = [eval_list,var_eval_list]
                 ## delete unused variables
                 del required_terms_constraint, eval_list, expvals, integrand_values, non_nan_indices, times_integrand
                 if evaluate_variance:
@@ -1166,10 +1166,10 @@ class Ansatz:
                             continue
                         commterm.remove_zero_coeffs()
                         ## evaluate commterm from evaluated terms
-                        mbalval_list = np.sum([np.multiply(evaluated_integrals[tmpterm.type][0],tmpterm.coeff) for tmpterm in commterm.terms.values()],axis=0)
+                        mbalval_list = np.sum([np.multiply(evaluated_integrals[tmpterm.pauli_type][0],tmpterm.coeff) for tmpterm in commterm.terms.values()],axis=0)
                         constraint_tensor_list[:,:,cinx,opinx] = np.real(mbalval_list)
                         if evaluate_variance:
-                            var_mbalval_list = np.sum([np.multiply(evaluated_integrals[tmpterm.type][1],tmpterm.coeff) for tmpterm in commterm.terms.values()],axis=0)
+                            var_mbalval_list = np.sum([np.multiply(evaluated_integrals[tmpterm.pauli_type][1],tmpterm.coeff) for tmpterm in commterm.terms.values()],axis=0)
                             var_constraint_tensor_list[:,:,cinx,opinx] = np.real(var_mbalval_list)
                         opinx +=1
                 # -------------------
@@ -1183,10 +1183,10 @@ class Ansatz:
                             continue
                         dissterm.remove_zero_coeffs()
                         ## evaluate dissterm from evaluated terms
-                        mbalval_list = np.sum([np.multiply(evaluated_integrals[tmpterm.type][0],tmpterm.coeff) for tmpterm in dissterm.terms.values()],axis=0)
+                        mbalval_list = np.sum([np.multiply(evaluated_integrals[tmpterm.pauli_type][0],tmpterm.coeff) for tmpterm in dissterm.terms.values()],axis=0)
                         constraint_tensor_list[:,:,cinx,opinx] = np.real(mbalval_list)
                         if evaluate_variance:
-                            var_mbalval_list = np.sum([np.multiply(evaluated_integrals[tmpterm.type][1],tmpterm.coeff) for tmpterm in dissterm.terms.values()],axis=0)
+                            var_mbalval_list = np.sum([np.multiply(evaluated_integrals[tmpterm.pauli_type][1],tmpterm.coeff) for tmpterm in dissterm.terms.values()],axis=0)
                             var_constraint_tensor_list[:,:,cinx,opinx] = np.real(var_mbalval_list)
                         opinx +=1
                 if cinx==20:
@@ -1329,8 +1329,8 @@ class Ansatz:
                         for terminx, term in enumerate(self.ansatz_operator.terms.values()):
                             for dissinx, diss in enumerate(ansatz_dissipators):
                                 # required operator for dissipative terms (all term.coeff are 1)
-                                qop_term = QuantumOperator(self.Nions, terms={term.type: term.coeff})
-                                qop_diss = QuantumOperator(self.Nions, terms={diss.type: term.coeff})
+                                qop_term = QuantumOperator(self.Nions, terms={term.pauli_type: term.coeff})
+                                qop_diss = QuantumOperator(self.Nions, terms={diss.pauli_type: term.coeff})
                                 qop_dissdag = qop_diss.dagger()
                                 term1 = qop_dissdag * qop_term.commutator(qop_diss)
                                 term2 = qop_dissdag.commutator(qop_term) * qop_diss

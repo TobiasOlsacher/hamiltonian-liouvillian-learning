@@ -24,7 +24,7 @@ class DataEntry:
     Attributes
     ----------
     Nions : int
-        Number of qubits in the syste.
+        Number of qubits in the system.
     initial_state : QuantumState
         Initial state of the quantum simulator
     simulation_time: float
@@ -119,7 +119,9 @@ class DataEntry:
         if simulation_time is not None:
             if simulation_time < 0:
                 raise ValueError("simulation_time is negative.")
-        self._simulation_time = float(simulation_time)
+            self._simulation_time = float(simulation_time)
+        else:
+            self._simulation_time = None
     @property
     def measurements(self):
         return self._measurements
@@ -169,12 +171,12 @@ class DataEntry:
                     raise ValueError("final_state is not of length Nions.")
                 if not all([x in ["0", "1"] for x in final_state]):
                     raise ValueError("final_state is not a valid bitstring.")
-            # check if final state is a ket or a denisty matrix
-            elif final_state.type != "ket" and final_state.type != "oper":
-                raise TypeError("final_state is not a ket or a density matrix.")
-            # check if dimension of final state is 2^Nions or 2^Nions x 2^Nions
-            elif final_state.shape[0] != 2**self.Nions:
-                raise ValueError("final_state is not a state of Nions qubits.")
+        # check if final state is a ket or a density matrix
+        elif hasattr(final_state, 'type') and final_state.type != "ket" and final_state.type != "oper":
+            raise TypeError("final_state is not a ket or a density matrix.")
+        # check if dimension of final state is 2^Nions or 2^Nions x 2^Nions
+        elif hasattr(final_state, 'shape') and final_state.shape[0] != 2**self.Nions:
+            raise ValueError("final_state is not a state of Nions qubits.")
         self._final_state = final_state
     ### ------------------ ###
     ### DataEntry methods ###
@@ -564,7 +566,7 @@ class DataEntry:
         Each shot is an individual evaluation of the corresponding term
         using the measured bitstrings stored in the DataEntry self.
         If the term can be measured from multiple bases stored in self, 
-        shots are returned for all availabel bases.
+        shots are returned for all available bases.
         If term_key is "I"*N, 1 is returned for each shot.
         (This is because all terms are valid for "I"*N, 
         but non of the entries of each shot is used.
@@ -706,7 +708,7 @@ class DataEntry:
         for basis in self.measurements:
             self.measurements[basis] = self.measurements[basis][0:nshots]
 
-    def sample_measurements(self, nshots, random=False):
+    def sample_measurements(self, nshots, random=False, seed=None):
         """
         Sample nshots measurements from the DataEntry without replacement.
 
@@ -715,12 +717,14 @@ class DataEntry:
 
         Parameters
         ----------
-        nshots : list
+        nshots : int
             Total number of measurements to be sampled from the DataEntry.
         random : bool, optional
             if True, samples measurements randomly
             if False, samples measurements sequentially
             Default is False.
+        seed : int, optional
+            Random seed for sampling. Default is None.
 
         Returns
         -------
@@ -751,6 +755,8 @@ class DataEntry:
                     sampled_data.measurements[basis] = self.measurements[basis]
                 else:
                     if random:
+                        if seed is not None:
+                            np.random.seed(seed)
                         sampled_indices = np.random.choice(range(len(self.measurements[basis])), size=nshots_basis, replace=False)
                         sampled_measurements = self.measurements[basis][sampled_indices]
                         sampled_data.measurements[basis] = sampled_measurements
@@ -959,7 +965,7 @@ class DataSet:
         data = {}
         for key in self.data:
             data[key] = self.data[key].copy()
-        return DataSet(Nions=self.Nions, data=data, simulator=self.simulator)
+        return DataSet(Nions=self.Nions, data=data)
 
     def add_data_entry(self, 
                     data_entry: DataEntry
@@ -997,7 +1003,7 @@ class DataSet:
                     other: DataSet,
                     ) -> None:
         """
-        Add each DataEntry of the DataSetother to this DataSet.
+        Add each DataEntry of the DataSet other to this DataSet.
 
         Parameters
         ----------
@@ -1187,7 +1193,7 @@ class DataSet:
                 continue
             if times is not None and entry.simulation_time not in times:
                 continue
-            if bases is not None and entry.measurements.keys() not in bases:
+            if bases is not None and not any(key in bases for key in entry.measurements.keys()):
                 continue
             # add entry to selected data set
             selected_data_set.add_data_entry(entry)

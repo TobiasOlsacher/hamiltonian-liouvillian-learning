@@ -4,7 +4,7 @@ It contains the following classes:
     - ParametrizationFunction
         A class for parametrizing a selected subset terms in the Hamiltonian and Liouvillian ansatz.
     - Parametrization
-        A class containing multiple different parametrization functions. 
+        A class containing multiple different parametrization functions.
 
 """
 from __future__ import annotations
@@ -51,10 +51,10 @@ class ParametrizationFunction:
         and algebraic_decay means 1/distance decay.
         Default is None
     operator : QuantumOperator, optional
-        Quantum operator used if type=="operator".
+        Quantum operator used if param_type=="operator".
         Default is None.
     dissipators : list of Dissipator objects, optional
-        List of Dissipator objects used if type=="dissipator".
+        List of Dissipator objects used if param_type=="dissipator".
         Default is None.
     cutoff : int, optional
         Set cutoff for the parametrization (e.g. 3).
@@ -89,7 +89,7 @@ class ParametrizationFunction:
     def __init__(self, 
                 coherent: bool = True, 
                 criterion: str | list[str] | None = None, 
-                type: str | None = None, 
+                param_type: str | None = None, 
                 operator: QuantumOperator | None = None, 
                 dissipators: list[Dissipator] | None = None, 
                 cutoff: int | None = None, 
@@ -119,23 +119,23 @@ class ParametrizationFunction:
             If coherent==False, criterion is a tuple of strings or a list of tuples of strings.
             A dissipator is chosen if dissipator[0] fulfills the criterion[0] and dissipator[1] fulfills the criterion[1].
             Default is None.
-        type : string
+        param_        param_type : string
             Type of parametrization (e.g. "free", "*_decay", "*_variation", "*_symmetry").
-            If type == "free", G becomes the identity whereever the criterion is fulfilled, and 0 otherwise.
-            If type == "*_decay", entries of a column of G decay with distance, 
+            If param_type == "free", G becomes the identity wherever the criterion is fulfilled, and 0 otherwise.
+            If param_type == "*_decay", entries of a column of G decay with distance, 
             where * can be "linear", "algebraic" or "exponential".
-            If type == "*_variation", entries of a column of G vary along the axial coordinate ("positions"),
+            If param_type == "*_variation", entries of a column of G vary along the axial coordinate ("positions"),
             where * can be any of "algebraicX" for X=1,2,3,4,5,6,7,8,9 (X is the order of the polynomial).
-            If type == "*_symmetry", entries of a column of G are set to 1 whereever the criterion is fulfilled, and 0 otherwise,
+            If param_type == "*_symmetry", entries of a column of G are set to 1 wherever the criterion is fulfilled, and 0 otherwise,
             where * can only be "translational".
             For example algebraic2_variation means 2nd-order polynomial,
             and algebraic_decay means 1/distance decay.
             Default is None
         operator : QuantumOperator, optional
-            Quantum operator used if type=="operator".
+            Quantum operator used if param_type=="operator".
             Default is None.
         dissipators : list of Dissipator objects, optional
-            List of Dissipator objects used if type=="dissipator".
+            List of Dissipator objects used if param_type=="dissipator".
             Default is None.
         cutoff : int, optional
             Set cutoff for the parametrization (e.g. 3).
@@ -169,7 +169,7 @@ class ParametrizationFunction:
         """
         self.coherent = coherent
         self.criterion = criterion
-        self.type = type
+        self.param_type = param_type
         self.operator = operator
         self.dissipators = dissipators
         self.cutoff = cutoff
@@ -188,7 +188,7 @@ class ParametrizationFunction:
     @coherent.setter
     def coherent(self, value):
         # check if value is a boolean
-        if type(value) != bool:
+        if not isinstance(value, bool):
             raise TypeError("coherent must be a boolean")
         self._coherent = value
     @property
@@ -196,38 +196,38 @@ class ParametrizationFunction:
         return self._criterion
     @criterion.setter
     def criterion(self, value):
-        if type(value)==str:
-            if not all([x in ["X", "Y", "Z", "M", "P", "I"] for x in value]): # or value in ["operator","dissipators"]:
-                raise ValueError("criterion is {}, but must be an uppercase string of X, Y, Z, M, P or I.".format(value))     # or equal to "operator" or "dissipators"".format(value))
-        elif type(value)==list:
-            if not all([type(x)==str for x in value]):
+        if isinstance(value, str):
+            if not all([x in ["X", "Y", "Z", "M", "P", "I"] for x in value]):
+                raise ValueError("criterion is {}, but must be an uppercase string of X, Y, Z, M, P or I.".format(value))
+        elif isinstance(value, list):
+            if not all([isinstance(x, str) for x in value]):
                 raise TypeError("criterion is {}, but must be a list of strings, but is".format(type(value)))
-            if not all([all([y in ["X", "Y", "Z", "M", "P", "I"] for y in x]) for x in value]): #or all([x in ["operator","dissipators"] for x in value]):
-                raise ValueError("criterion is {}, but must be a list of strings of X, Y, Z, M, P or I.".format(value))      # or equal to "operator" or "dissipators"".format(value))
-        elif value!=None:
+            if not all([all([y in ["X", "Y", "Z", "M", "P", "I"] for y in x]) for x in value]):
+                raise ValueError("criterion is {}, but must be a list of strings of X, Y, Z, M, P or I.".format(value))
+        elif value is not None:
             raise TypeError("criterion is {}, but must be a string or a list of strings".format(type(value)))
-        if self.coherent and type(value) == str:
+        if self.coherent and isinstance(value, str):
             value = [value]
-        if not self.coherent and type(value) == list and all(isinstance(item,str) for item in value):
+        if not self.coherent and isinstance(value, list) and all(isinstance(item, str) for item in value):
             value = [value]
         self._criterion = value
     @property
-    def type(self):
-        return self._type
-    @type.setter
-    def type(self, value):
+    def param_type(self):
+        return self._param_type
+    @param_type.setter
+    def param_type(self, value):
         # None is allowed (sets all coefficients to 0)
         if value is None:
-            self._type = None
+            self._param_type = None
             return
         # check if value is a string
-        elif type(value) != str:
+        elif not isinstance(value, str):
             raise TypeError("type must be a string")
         # check if value is is among the allowed values
         allowed_values = ["operator", "dissipators", "free", "translational_symmetry", "linear_decay", "algebraic_decay", "exponential_decay", "free_variation", "algebraic", "cos", "sin"]
         if not any([value.startswith(x) for x in allowed_values]):
-            raise ValueError("type = {}, but must start with one of the allowed values: {}".format(value, allowed_values))
-        self._type = value
+            raise ValueError("param_type = {}, but must start with one of the allowed values: {}".format(value, allowed_values))
+        self._param_type = value
     @property
     def operator(self):
         return self._operator
@@ -245,7 +245,7 @@ class ParametrizationFunction:
     def dissipators(self, value):
         # check if value is a list of Dissipator objects
         if value is not None:
-            if type(value) != list:
+            if not isinstance(value, list):
                 raise TypeError("dissipators must be a list")
             for x in value:
                 if not isinstance(x, Dissipator):
@@ -258,7 +258,7 @@ class ParametrizationFunction:
     def cutoff(self, value):
         # check if value is a positive integer
         if value is not None:
-            if type(value) != int:
+            if not isinstance(value, int):
                 raise TypeError("cutoff must be an integer")
         self._cutoff = value
     @property
@@ -268,7 +268,7 @@ class ParametrizationFunction:
     def range(self, value):
         # check if value is a non-negative integer
         if value is not None:
-            if type(value) != int:
+            if not isinstance(value, int):
                 raise TypeError("range must be an integer")
             if value < 0:
                 raise ValueError("range must be non-negative")
@@ -280,12 +280,12 @@ class ParametrizationFunction:
     def subsystems(self, value):
         # check if value is a list of lists of integers
         if value is not None:
-            if type(value) != list:
+            if not isinstance(value, list):
                 raise TypeError("subsystems must be a list")
             for x in value:
-                if type(x) != list:
+                if not isinstance(x, list):
                     raise TypeError("subsystems must be a list of lists")
-                if not all([type(y) == int for y in x]):
+                if not all([isinstance(y, int) for y in x]):
                     raise TypeError("subsystems must be a list of lists of integers")
         self._subsystems = value
     @property
@@ -295,12 +295,12 @@ class ParametrizationFunction:
     def not_subsystems(self, value):
         # check if value is a list of lists of integers
         if value is not None:
-            if type(value) != list:
+            if not isinstance(value, list):
                 raise TypeError("not_subsystems must be a list")
             for x in value:
-                if type(x) != list:
+                if not isinstance(x, list):
                     raise TypeError("not_subsystems must be a list of lists")
-                if not all([type(y) == int for y in x]):
+                if not all([isinstance(y, int) for y in x]):
                     raise TypeError("not_subsystems must be a list of lists of integers")
         self._not_subsystems = value
     # TODO: parameters, exact_parameters, bounds
@@ -339,7 +339,7 @@ class ParametrizationFunction:
         Parameters
         ----------
         other : ParametrizationFunction
-            Parametriztion function to compare to
+            Parametrization function to compare to
 
         Returns
         -------
@@ -360,11 +360,11 @@ class ParametrizationFunction:
             string representation of the parametrization function.
         """
         criterion_str = self.criterion
-        type_str = self.type
+        param_type_str = self.param_type
         if self.operator is not None:
-            type_str = "operator"
+            param_type_str = "operator"
         if self.dissipators is not None:
-            type_str = "dissipators"
+            param_type_str = "dissipators"
         if self.cutoff is not None:
             cutoff_str = "cutoff={}".format(self.cutoff)
         else:
@@ -394,7 +394,7 @@ class ParametrizationFunction:
         else:
             not_subsystems_str = ""
         ## get combined string
-        msetting_str = "criterion={}, type={}, {}, {}, {}, {}, {}, {}, {}".format(criterion_str,type_str,cutoff_str,range_str,parameters_str,exact_parameters_str,bounds_str,subsystems_str,not_subsystems_str) 
+        msetting_str = "criterion={}, param_type={}, {}, {}, {}, {}, {}, {}, {}".format(criterion_str,param_type_str,cutoff_str,range_str,parameters_str,exact_parameters_str,bounds_str,subsystems_str,not_subsystems_str) 
         return msetting_str
 
     def __call__(self, 
@@ -449,8 +449,8 @@ class ParametrizationFunction:
         ### STEP 1 ### coherent ParametrizationFunction
         if isinstance(operator, PauliOperator):
             # check if criterion is for operator
-            if self.type == "operator":
-                if operator.type in self.operator.terms:
+            if self.param_type == "operator":
+                if operator.pauli_type in self.operator.terms:
                     return True
             # check if coherent
             if not self.coherent:
@@ -458,13 +458,13 @@ class ParametrizationFunction:
             # check list of criteria
             for criterion in self.criterion:
                 # check if criterion is fulfilled
-                if criterion == operator.type:
+                if criterion == operator.pauli_type:
                     return True
                 if "I" not in criterion:
                     # get number of each char in self.criterion
                     criterion_counts = [criterion.count(x) for x in ["X", "Y", "Z", "M", "P"]]
-                    # get number of each char in operator.type
-                    op_counts = [operator.type.count(x) for x in ["X", "Y", "Z", "M", "P"]]
+                    # get number of each char in operator.pauli_type
+                    op_counts = [operator.pauli_type.count(x) for x in ["X", "Y", "Z", "M", "P"]]
                     # check if criterion is fulfilled
                     if criterion_counts == op_counts:
                         return True
@@ -472,9 +472,9 @@ class ParametrizationFunction:
         ### STEP 2 ### dissipative ParametrizationFunction
         if isinstance(operator, Dissipator):
             # check if dissipator is given
-            if self.type == "dissipators":
-                diss_types = [diss.type for diss in self.dissipators]
-                if operator.type in diss_types:
+            if self.param_type == "dissipators":
+                diss_types = [diss.diss_type for diss in self.dissipators]
+                if operator.diss_type in diss_types:
                     return True
             # check if coherent
             if self.coherent:
@@ -482,15 +482,15 @@ class ParametrizationFunction:
             # check list of criteria
             for criterion in self.criterion:
                 # check if criterion is fulfilled
-                if criterion == operator.type:
+                if criterion == operator.diss_type:
                     return True
                 if "I" not in criterion[0] and "I" not in criterion[1]:
                     # get number of each char in self.criterion
                     criterion_counts1 = [criterion[0].count(x) for x in ["X", "Y", "Z", "M", "P"]]
                     criterion_counts2 = [criterion[1].count(x) for x in ["X", "Y", "Z", "M", "P"]]
-                    # get number of each char in operator.type
-                    op_counts1 = [operator.type[0].count(x) for x in ["X", "Y", "Z", "M", "P"]]
-                    op_counts2 = [operator.type[1].count(x) for x in ["X", "Y", "Z", "M", "P"]]
+                    # get number of each char in operator.diss_type
+                    op_counts1 = [operator.diss_type[0].count(x) for x in ["X", "Y", "Z", "M", "P"]]
+                    op_counts2 = [operator.diss_type[1].count(x) for x in ["X", "Y", "Z", "M", "P"]]
                     # check if criterion is fulfilled
                     if criterion_counts1 == op_counts1 and criterion_counts2 == op_counts2:
                         return True
@@ -574,44 +574,44 @@ class ParametrizationFunction:
         #---------------------
         ### STEP 2 ### create coefficients according to type
         coeff = None
-        if self.type == "operator":
+        if self.param_type == "operator":
             coeff = 0
-            if operator.type in self.operator.terms:
-                coeff = self.operator.terms[operator.type].coeff
-        elif self.type == "dissipators":   
-            diss_types = [diss.type for diss in self.dissipators]
+            if operator.pauli_type in self.operator.terms:
+                coeff = self.operator.terms[operator.pauli_type].coeff
+        elif self.param_type == "dissipators":   
+            diss_types = [diss.diss_type for diss in self.dissipators]
             coeff = 0
-            if operator.type in diss_types:
-                coeff = self.dissipators[diss_types.index(operator.type)].coeff
-        elif self.type == "free":
+            if operator.diss_type in diss_types:
+                coeff = self.dissipators[diss_types.index(operator.diss_type)].coeff
+        elif self.param_type == "free":
             coeff = 1
-        elif self.type.endswith("_variation"):
+        elif self.param_type.endswith("_variation"):
             # get center of operator
             center = operator.center()
             # create coefficient
-            if self.type.startswith("algebraic"):
-                order = int(self.type[9])
+            if self.param_type.startswith("algebraic"):
+                order = int(self.param_type[9])
                 coeff = center**order
             else:
-                raise ValueError("type={} not recognized".format(self.type))
-        elif self.type.endswith("_decay"):
+                raise ValueError("param_type={} not recognized".format(self.param_type))
+        elif self.param_type.endswith("_decay"):
             # get range of operator (maximum distance between acting terms)
             distance = operator.range()
             # create coefficient
-            if self.type == "algebraic_decay":
+            if self.param_type == "algebraic_decay":
                 coeff = 1/distance**self.parameters[0]
-            elif self.type == "exponential_decay":
+            elif self.param_type == "exponential_decay":
                 coeff = np.exp(-self.parameters[0]*distance)
-            elif self.type == "linear_decay":
+            elif self.param_type == "linear_decay":
                 coeff = distance
             if not self.check_cutoff(operator):
                 coeff = 0
-        elif self.type.endswith("_symmetry"):
-            if self.type == "translational_symmetry":
+        elif self.param_type.endswith("_symmetry"):
+            if self.param_type == "translational_symmetry":
                 coeff = 1
         ### check if coeff is associated with a value
         if coeff is None:
-            raise ValueError("type={} not recognized".format(self.type))
+            raise ValueError("param_type={} not recognized".format(self.param_type))
         #---------------------
         return coeff
 
@@ -685,7 +685,7 @@ class Parametrization:
     def name(self, value):
         # check if value is a string
         if value is not None:
-            if type(value) != str:
+            if not isinstance(value, str):
                 raise TypeError("name must be a string")
         self._name = value
     @property
@@ -699,7 +699,7 @@ class Parametrization:
                 raise TypeError("functions must be a list")
             # check if value is a list of ParametrizationFunction objects
             for x in value:
-                if type(x) != ParametrizationFunction:
+                if not isinstance(x, ParametrizationFunction):
                     raise TypeError("functions must be a list of ParametrizationFunction objects")
         self._functions = value
     @property
@@ -709,11 +709,11 @@ class Parametrization:
     def regularizations(self, value):
         if value is not None:
             # check if value is a list
-            if type(value) != list:
+            if not isinstance(value, list):
                 raise TypeError("regularizations must be a list")
             # check if value is a list of ParametrizationFunction objects
             for x in value:
-                if type(x) != ParametrizationFunction:
+                if not isinstance(x, ParametrizationFunction):
                     raise TypeError("regularizations must be a list of ParametrizationFunction objects")
         self._regularizations = value
     @property
@@ -747,7 +747,7 @@ class Parametrization:
         other : Parametrization
             parametrization to compare to
 
-        Results
+        Returns
         -------
         bool
             whether the parametrizations are equal
@@ -781,7 +781,7 @@ class Parametrization:
         other : Parametrization
             parametrization to compare to
 
-        Results
+        Returns
         -------
         bool
             whether the parametrizations are not equal
@@ -831,7 +831,7 @@ class Parametrization:
             n_nonlin_pars = len(nonlin_pars)
         ### STEP 3 ### get combined string
         if verbose:
-            parstr = "par:{} [nfct={},nreg={},n_nonlin={}] ,".format(self.name, nfunctions, nregularizations, n_nonlin_pars) , "parametrization functions: ", functions, "regularizations: ", regularizations
+            parstr = "par:{} [nfct={},nreg={},n_nonlin={}], parametrization functions: {}, regularizations: {}".format(self.name, nfunctions, nregularizations, n_nonlin_pars, functions, regularizations)
         elif name_only:
             parstr = self.name
         else:
@@ -870,11 +870,11 @@ class Parametrization:
         #---------------------
         ### STEP 1 ### check input
         # check if functions is a list
-        if type(functions) != list:
+        if not isinstance(functions, list):
             raise TypeError("functions must be a list")
         # check if functions is a list of ParametrizationFunction objects
         for x in functions:
-            if type(x) != ParametrizationFunction:
+            if not isinstance(x, ParametrizationFunction):
                 raise TypeError("functions must be a list of ParametrizationFunction objects")
         #---------------------
         ### STEP 2 ### add functions
@@ -944,7 +944,10 @@ class Parametrization:
                 raise TypeError("operator must be a PauliOperator or a Dissipator")
             ## ignore terms if they are too far apart (cutoff)
             if cutoff is not None or range is not None:
-                tmp_parfct = ParametrizationFunction(criterion=op.type, type="free", cutoff=cutoff, range=range, coherent=coherent)
+                if coherent:
+                    tmp_parfct = ParametrizationFunction(criterion=op.pauli_type, param_type="free", cutoff=cutoff, range=range, coherent=coherent)
+                else:
+                    tmp_parfct = ParametrizationFunction(criterion=op.diss_type, param_type="free", cutoff=cutoff, range=range, coherent=coherent)
                 if not tmp_parfct.check_cutoff(op):
                     continue
             ## check if term is already in the Parametrization
@@ -964,29 +967,34 @@ class Parametrization:
             ## add parametrization function for missing operator
             if not found:
                 ## get criterion
-                criterion = op.type
+                if isinstance(op, PauliOperator):
+                    criterion = op.pauli_type
+                elif isinstance(op, Dissipator):
+                    criterion = op.diss_type
+                else:
+                    raise TypeError("operator must be a PauliOperator or a Dissipator")
                 ## apply symmetry
                 if symmetry is not None:
                     trans = str.maketrans(symmetry)
                     # coherent terms
                     if isinstance(op, PauliOperator):
-                        criterion = [op.type]
-                        if op.type.translate(trans)!=op.type:
-                            criterion.append(op.type.translate(trans))
+                        criterion = [op.pauli_type]
+                        if op.pauli_type.translate(trans)!=op.pauli_type:
+                            criterion.append(op.pauli_type.translate(trans))
                     # dissipative terms
                     if isinstance(op, Dissipator):
                         raise NotImplementedError("Symmetry translation for Dissipators is not implemented yet.")  
                 ## add parametrization function 
                 if par_type == "parametrization":
                     if self.functions is None:
-                        self.functions = [ParametrizationFunction(criterion=criterion, type="free", coherent=coherent)]
+                        self.functions = [ParametrizationFunction(criterion=criterion, param_type="free", coherent=coherent)]
                     else:
-                        self.functions.append(ParametrizationFunction(criterion=criterion, type="free", coherent=coherent))       
+                        self.functions.append(ParametrizationFunction(criterion=criterion, param_type="free", coherent=coherent))       
                 elif par_type == "regularization":
                     if self.regularizations is None:
-                        self.regularizations = [ParametrizationFunction(criterion=criterion, type="free", coherent=coherent)]
+                        self.regularizations = [ParametrizationFunction(criterion=criterion, param_type="free", coherent=coherent)]
                     else:
-                        self.regularizations.append(ParametrizationFunction(criterion=criterion, type="free", coherent=coherent))
+                        self.regularizations.append(ParametrizationFunction(criterion=criterion, param_type="free", coherent=coherent))
                 else:
                     raise ValueError("par_type = {}, but must be either 'parametrization' or 'regularization'".format(par_type)) 
 
@@ -1020,7 +1028,7 @@ class Parametrization:
                 if not fct.coherent:
                     fcts_new.append(fct)
             # add fixed Hamiltonian
-            Hfct = ParametrizationFunction(type="operator", coherent=True, operator=fixed_hamiltonian)
+            Hfct = ParametrizationFunction(param_type="operator", coherent=True, operator=fixed_hamiltonian)
             fcts_new.append(Hfct)
             self.functions = fcts_new
         ### set fixed dissipators
@@ -1034,7 +1042,7 @@ class Parametrization:
         Returns
         -------
         list
-            list of the nonlinar parameters of the Parametrization
+            list of the nonlinear parameters of the Parametrization
         """
         parameters = []
         # parametrization functions

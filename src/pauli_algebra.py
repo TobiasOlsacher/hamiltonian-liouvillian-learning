@@ -40,7 +40,8 @@ class PauliOperator:
     """
     def __init__(self, 
                 N: int, 
-                type: str, 
+                type: str | None = None,
+                pauli_type: str | None = None,
                 coeff: complex = 1.0
                 ):
         """
@@ -50,13 +51,13 @@ class PauliOperator:
         ----------
         N : int
             Number of qubits.
-        type : str
+        pauli_type : str, optional
             Pauli string specifying the operator.
         coeff : complex, optional
             Coefficient of the Pauli operator. Default is ``1.0``.
         """
-        self._N = N  
-        self.type = type  
+        self._N = N
+        self.pauli_type = pauli_type
         self.coeff = coeff 
     ### ----------------- ###
     ### custom attributes ###
@@ -68,15 +69,15 @@ class PauliOperator:
     def type(self):
         return self._type
     @type.setter
-    def type(self, type):
-        # check if type is a string of length Nions
-        if not isinstance(type, str) or len(type) != self.N:
-            raise ValueError("type is {}, but must be a string of length N={}".format(type, self.N))
-        # check if type is a valid pauli string
-        if not all([c in ["I", "X", "Y", "Z", "M", "P"] for c in type]):
-            raise ValueError("type is {}, but must be a valid pauli string".format(type))
+    def type(self, pauli_type):
+        # check if pauli_type is a string of length Nions
+        if not isinstance(pauli_type, str) or len(pauli_type) != self.N:
+            raise ValueError("type is {}, but must be a string of length N={}".format(pauli_type, self.N))
+        # check if pauli_type is a valid pauli string
+        if not all([c in ["I", "X", "Y", "Z", "M", "P"] for c in pauli_type]):
+            raise ValueError("type is {}, but must be a valid pauli string".format(pauli_type))
         # set type
-        self._type = type
+        self._type = pauli_type
     @property
     def coeff(self):
         return self._coeff
@@ -99,7 +100,7 @@ class PauliOperator:
         PauliOperator
             A new instance with the same attributes as this operator.
         """
-        return PauliOperator(N=self.N, coeff=self.coeff, type=self.type)
+        return PauliOperator(N=self.N, coeff=self.coeff, pauli_type=self.pauli_type)
     
     def to_quantum_operator(self) -> QuantumOperator:
         """
@@ -110,7 +111,7 @@ class PauliOperator:
         QuantumOperator
             A new instance with the same attributes as this operator.
         """
-        qop = QuantumOperator(self.N, terms={self.type: self.coeff})
+        qop = QuantumOperator(self.N, terms={self.pauli_type: self.coeff})
         return qop
     
     def __str__(self):
@@ -172,7 +173,7 @@ class PauliOperator:
                 opstr += "c({})".format(index)
         else:
             opstr += "{}*".format(coeff)
-        opstr += self.type       
+        opstr += self.pauli_type       
         #----------------------------------------     
         return opstr
 
@@ -196,7 +197,7 @@ class PauliOperator:
         if not isinstance(other, PauliOperator):
             raise TypeError("pauli_operator.__eq__: other must be a pauli_operator")
         # check type
-        typeval = self.type==other.type
+        typeval = self.pauli_type==other.pauli_type
         # check coefficient
         if self.coeff is None or other.coeff is None:
             coeffval = True
@@ -221,9 +222,9 @@ class PauliOperator:
             PauliOperator with coeff=-self.coeff
         """
         if self.coeff is None:
-            return PauliOperator(N=self.N, coeff=None, type=self.type)
+            return PauliOperator(N=self.N, coeff=None, pauli_type=self.pauli_type)
         else:
-            return PauliOperator(N=self.N, coeff=-self.coeff, type=self.type)
+            return PauliOperator(N=self.N, coeff=-self.coeff, pauli_type=self.pauli_type)
 
     def __abs__(self) -> PauliOperator:
         """
@@ -233,7 +234,7 @@ class PauliOperator:
         PauliOperator
             PauliOperator with coeff=abs(self.coeff)
         """
-        return PauliOperator(N=self.N, coeff=abs(self.coeff), type=self.type)
+        return PauliOperator(N=self.N, coeff=abs(self.coeff), pauli_type=self.pauli_type)
 
     def dagger(self) -> PauliOperator:
         """
@@ -241,11 +242,11 @@ class PauliOperator:
 
         -------
         PauliOperator
-            PauliOperator with coeff=conj(self.coeff) and type=transpose(self.type)
+            PauliOperator with coeff=conj(self.coeff) and pauli_type=transpose(self.pauli_type)
         """
-        # replace "M" by "P" in self.type
-        type_dag = self.type.replace("M","P")
-        pop_dag = PauliOperator(N=self.N, coeff=complex(np.conj(self.coeff)), type=type_dag)
+        # replace "M" by "P" in self.pauli_type
+        type_dag = self.pauli_type.replace("M","P")
+        pop_dag = PauliOperator(N=self.N, coeff=complex(np.conj(self.coeff)), pauli_type=type_dag)
         return pop_dag
 
     def is_identity(self) -> bool:
@@ -257,7 +258,7 @@ class PauliOperator:
         bool
             True if type is ``"II...I"``, False otherwise
         """        
-        return self.type == "I"*self.N
+        return self.pauli_type == "I"*self.N
 
     def __add__(self, 
             other: PauliOperator,
@@ -279,16 +280,16 @@ class PauliOperator:
         if not isinstance(other, PauliOperator):
             raise TypeError("pauli_operator.__add__: other must be a pauli_operator")
         # check if pauli operators have same type
-        if self.type != other.type:
+        if self.pauli_type != other.pauli_type:
             raise ValueError("pauli_operator.__add__: pauli operators must have same type")
         # get type of sum
-        sum_str = self.type
+        sum_str = self.pauli_type
         # get coeff of sum
         if self.coeff is None or other.coeff is None:
             sum_coeff = None
         else:
             sum_coeff = self.coeff + other.coeff
-        return PauliOperator(N=self.N, coeff=sum_coeff, type="".join(sum_str))
+        return PauliOperator(N=self.N, coeff=sum_coeff, pauli_type="".join(sum_str))
 
     def __sub__(self, 
                 other: PauliOperator
@@ -327,12 +328,12 @@ class PauliOperator:
             raise TypeError("pauli_operator.__mul__: other must be a pauli_operator or a complex number")
         # scalar multiplication
         if isinstance(other,(int,float,complex)):
-            return PauliOperator(N=self.N, coeff=self.coeff * other, type=self.type)
+            return PauliOperator(N=self.N, coeff=self.coeff * other, pauli_type=self.pauli_type)
         # pauli operator multiplication
         elif isinstance(other, PauliOperator):
-            # check if "P" or "M" in self.type or other.type
-            if "P" in self.type or "M" in self.type or "P" in other.type or "M" in other.type:
-                raise ValueError("pauli_operator.__mul__: cannot multiply pauli operators {}x{} due to P or M entries".format(self.type, other.type))
+            # check if "P" or "M" in self.pauli_type or other.pauli_type
+            if "P" in self.pauli_type or "M" in self.pauli_type or "P" in other.pauli_type or "M" in other.pauli_type:
+                raise ValueError("pauli_operator.__mul__: cannot multiply pauli operators {}x{} due to P or M entries".format(self.pauli_type, other.pauli_type))
             # initialize product operator type
             prod_type = ["I"]*self.N
             # get coeff of product
@@ -342,16 +343,16 @@ class PauliOperator:
                 prod_coeff = self.coeff * other.coeff
             # get type of product
             for inx in range(self.N):
-                if self.type[inx] == other.type[inx]:
+                if self.pauli_type[inx] == other.pauli_type[inx]:
                     prod_type[inx] = "I"
-                elif self.type[inx] == "I" or other.type[inx] == "I":
-                    if self.type[inx] != "I":
-                        prod_type[inx] = self.type[inx]
+                elif self.pauli_type[inx] == "I" or other.pauli_type[inx] == "I":
+                    if self.pauli_type[inx] != "I":
+                        prod_type[inx] = self.pauli_type[inx]
                     else:
-                        prod_type[inx] = other.type[inx]
+                        prod_type[inx] = other.pauli_type[inx]
                 else:
                     for pchar in ["X","Y","Z"]:
-                        if pchar not in [self.type[inx], other.type[inx]]:
+                        if pchar not in [self.pauli_type[inx], other.pauli_type[inx]]:
                             prod_type[inx] = pchar
                             break
                     def cycle(pchar):
@@ -361,14 +362,14 @@ class PauliOperator:
                             return "Z"
                         elif pchar == "Z":
                             return "X"
-                    # if cycle(ord(self.type[i])) == ord(other.type[i]):
+                    # if cycle(ord(self.pauli_type[i])) == ord(other.pauli_type[i]):
                     # get prefactor of coeff of product
                     if prod_coeff is not None:
-                        if cycle(self.type[inx]) == other.type[inx]:
+                        if cycle(self.pauli_type[inx]) == other.pauli_type[inx]:
                             prod_coeff *= 1j
                         else:
                             prod_coeff *= -1j
-            return PauliOperator(N=self.N, coeff=prod_coeff, type="".join(prod_type))
+            return PauliOperator(N=self.N, coeff=prod_coeff, pauli_type="".join(prod_type))
 
     def __rmul__(self, other) -> PauliOperator:
         """
@@ -421,19 +422,19 @@ class PauliOperator:
             power of the pauli operator
         """
         # check if power is a positive int
-        if not isinstance(power,int) and power > 0:
+        if not (isinstance(power, int) and power > 0):
             raise TypeError("pauli_operator.__pow__: power must be a positive int")
-        # check if "P" or "M" in self.type or other.type
-        if "P" in self.type or "M" in self.type:
-            raise ValueError("pauli_operator.__mul__: cannot take power of pauli operators {} due to P or M entries".format(self.type))
+        # check if "P" or "M" in self.pauli_type or other.pauli_type
+        if "P" in self.pauli_type or "M" in self.pauli_type:
+            raise ValueError("pauli_operator.__mul__: cannot take power of pauli operators {} due to P or M entries".format(self.pauli_type))
         # get coeff of power
         pow_coeff = self.coeff**power
         # get type of power
         if power % 2 == 0:
             pow_type = "I"*self.N
         else:
-            pow_type = self.type
-        return PauliOperator(N=self.N, coeff=pow_coeff, type=pow_type)
+            pow_type = self.pauli_type
+        return PauliOperator(N=self.N, coeff=pow_coeff, pauli_type=pow_type)
 
     def norm(self) -> float:
         """
@@ -478,8 +479,8 @@ class PauliOperator:
         range : int
             range of the PauliOperator
         """
-        # get non I entries of self.type
-        non_I = [inx for inx in range(self.N) if self.type[inx] != "I"]
+        # get non I entries of self.pauli_type
+        non_I = [inx for inx in range(self.N) if self.pauli_type[inx] != "I"]
         # return the maximal distance between two non I entries
         maxran = 0
         if len(non_I)>0:
@@ -497,7 +498,7 @@ class PauliOperator:
         support : list of int
             support of the PauliOperator
         """
-        support = [inx for inx in range(self.N) if self.type[inx] != "I"]
+        support = [inx for inx in range(self.N) if self.pauli_type[inx] != "I"]
         return support
 
     def center(self) -> float:
@@ -513,13 +514,13 @@ class PauliOperator:
             center of the PauliOperator
         """
         # find index with non-I term
-        non_I_index = [i for i, x in enumerate(self.type) if x != "I"]
+        non_I_index = [i for i, x in enumerate(self.pauli_type) if x != "I"]
         if len(non_I_index) not in  [1,2]:
-            raise ValueError("pop.type must contain exactly one or two non-I terms")
+            raise ValueError("pop.pauli_type must contain exactly one or two non-I terms")
         if len(non_I_index) == 1:
-            center = non_I_index[0]-(len(self.type)-1)/2   # [-(N-1)/2, (N-1)/2]
+            center = non_I_index[0]-(len(self.pauli_type)-1)/2   # [-(N-1)/2, (N-1)/2]
         elif len(non_I_index) == 2:
-            center = (non_I_index[0]+non_I_index[1])/2-(len(self.type)-1)/2   # [-(N-1)/2, (N-1)/2]
+            center = (non_I_index[0]+non_I_index[1])/2-(len(self.pauli_type)-1)/2   # [-(N-1)/2, (N-1)/2]
         return center
 
     def split_MP(self) -> list:
@@ -533,23 +534,23 @@ class PauliOperator:
         list of PauliOperators
         """
         pop_list = [self]
-        # check if "M" or "P" are in self.type
-        if "M" in self.type or "P" in self.type:
-            # get all indices of "M" and "P" in self.type
-            MP_inx = [inx for inx in range(len(self.type)) if self.type[inx] == "M" or self.type[inx] == "P"]
+        # check if "M" or "P" are in self.pauli_type
+        if "M" in self.pauli_type or "P" in self.pauli_type:
+            # get all indices of "M" and "P" in self.pauli_type
+            MP_inx = [inx for inx in range(len(self.pauli_type)) if self.pauli_type[inx] == "M" or self.pauli_type[inx] == "P"]
             # split into Pauli operators without "M" or "P"
             pop_list_new = pop_list.copy()
             while len(MP_inx) > 0:
                 pop_list = pop_list_new.copy()
                 for pop in pop_list:
-                    if pop.type[MP_inx[0]] == "M":
+                    if pop.pauli_type[MP_inx[0]] == "M":
                         pop_list_new.remove(pop)
-                        pop_list_new.append(PauliOperator(N=pop.N, coeff=pop.coeff/2, type=pop.type[:MP_inx[0]]+"X"+pop.type[MP_inx[0]+1:]))
-                        pop_list_new.append(PauliOperator(N=pop.N, coeff=-1j*pop.coeff/2, type=pop.type[:MP_inx[0]]+"Y"+pop.type[MP_inx[0]+1:]))
-                    elif pop.type[MP_inx[0]] == "P":
+                        pop_list_new.append(PauliOperator(N=pop.N, coeff=pop.coeff/2, pauli_type=pop.pauli_type[:MP_inx[0]]+"X"+pop.pauli_type[MP_inx[0]+1:]))
+                        pop_list_new.append(PauliOperator(N=pop.N, coeff=-1j*pop.coeff/2, pauli_type=pop.pauli_type[:MP_inx[0]]+"Y"+pop.pauli_type[MP_inx[0]+1:]))
+                    elif pop.pauli_type[MP_inx[0]] == "P":
                         pop_list_new.remove(pop)
-                        pop_list_new.append(PauliOperator(N=pop.N, coeff=pop.coeff/2, type=pop.type[:MP_inx[0]]+"X"+pop.type[MP_inx[0]+1:]))
-                        pop_list_new.append(PauliOperator(N=pop.N, coeff=1j*pop.coeff/2, type=pop.type[:MP_inx[0]]+"Y"+pop.type[MP_inx[0]+1:]))
+                        pop_list_new.append(PauliOperator(N=pop.N, coeff=pop.coeff/2, pauli_type=pop.pauli_type[:MP_inx[0]]+"X"+pop.pauli_type[MP_inx[0]+1:]))
+                        pop_list_new.append(PauliOperator(N=pop.N, coeff=1j*pop.coeff/2, pauli_type=pop.pauli_type[:MP_inx[0]]+"Y"+pop.pauli_type[MP_inx[0]+1:]))
                 MP_inx.pop(0)
             pop_list = pop_list_new.copy()
         return pop_list
@@ -588,7 +589,7 @@ class PauliOperator:
         required_bases = []
         for base in bases:
             # check if all non-I chars in term match base
-            if all([self.type[inx] == base[inx] for inx in range(self.N) if self.type[inx] != "I"]):
+            if all([self.pauli_type[inx] == base[inx] for inx in range(self.N) if self.pauli_type[inx] != "I"]):
                 can_be_measured = True
                 required_bases.append(base)
                 # if not return_required_bases:
@@ -643,14 +644,14 @@ class QuantumOperator:
             if not np.isscalar(terms[key]):
                 raise TypeError("QuantumOperator.__init__: value={}, but must be complex number".format(terms[key]))
             # create pauli operator
-            pop_list.extend(PauliOperator(N=self.N, coeff=terms[key], type=key).split_MP())
+            pop_list.extend(PauliOperator(N=self.N, coeff=terms[key], pauli_type=key).split_MP())
         # create dictionary of pauli terms
         terms = {}
         for pop in pop_list:
-            if pop.type in terms:
-                terms[pop.type] += pop
+            if pop.pauli_type in terms:
+                terms[pop.pauli_type] += pop
             else:
-                terms[pop.type] = pop
+                terms[pop.pauli_type] = pop
         self.terms = terms
     ## ----------------- ##
     ## custom properties ##
@@ -905,7 +906,7 @@ class QuantumOperator:
             raise ValueError("QuantumOperator.to_pauli_operator: quantum operator must have exactly 1 term")
         # get the only term
         key = list(self.terms.keys())[0]
-        pauliop = PauliOperator(N=self.N, coeff=self.terms[key].coeff, type=key)
+        pauliop = PauliOperator(N=self.N, coeff=self.terms[key].coeff, pauli_type=key)
         return pauliop
 
     def to_vector(self, 
@@ -973,7 +974,7 @@ class QuantumOperator:
         for pstr_prod in pstr_list: 
             if vector[pinx] != 0:
                 pstr = "".join(pstr_prod)
-                self.terms[pstr] = PauliOperator(N=N, coeff=vector[pinx], type=pstr)
+                self.terms[pstr] = PauliOperator(N=N, coeff=vector[pinx], pauli_type=pstr)
             pinx += 1
 
     def coeffs(self, 
@@ -1103,16 +1104,16 @@ class QuantumOperator:
         bool
             True if all nonzero terms in self are equal to all nonzero terms in other
         """
-        self = self.copy()
-        other = other.copy()
-        self.remove_zero_coeffs()
+        self_copy = self.copy()
+        other_copy = other.copy()
+        self_copy.remove_zero_coeffs()
         if isinstance(other, QuantumOperator):
-            other.remove_zero_coeffs()
+            other_copy.remove_zero_coeffs()
             # check if keys are the same
-            if set(self.terms.keys()) != set(other.terms.keys()):
+            if set(self_copy.terms.keys()) != set(other_copy.terms.keys()):
                 return False
-            for key in self.terms:
-                if self.terms[key] != other.terms[key]:
+            for key in self_copy.terms:
+                if self_copy.terms[key] != other_copy.terms[key]:
                     return False
             return True
         else:
@@ -1151,11 +1152,11 @@ class QuantumOperator:
             pauli_list = pauli_operator.split_MP()
             for pop in pauli_list:
                 # check if pauli operator is already in the dictionary
-                if pop.type in self.terms:
-                    self.terms[pop.type] += pop
+                if pop.pauli_type in self.terms:
+                    self.terms[pop.pauli_type] += pop
                 # if pauli operator is not in the quantum operator, add it
                 else:
-                    self.terms[pop.type] = pop
+                    self.terms[pop.pauli_type] = pop
         else:
             raise TypeError("quantum_operator.add_term: pauli_operator must be a pauli_operator")
 
@@ -1347,7 +1348,7 @@ class QuantumOperator:
         """
         if isinstance(other, PauliOperator):
             #convert to quantum operator
-            other = QuantumOperator(N=other.N, terms={other.type: other.coeff})
+            other = QuantumOperator(N=other.N, terms={other.pauli_type: other.coeff})
         if isinstance(other, QuantumOperator):
             return self * other - other * self
         else:
@@ -1399,7 +1400,7 @@ class QuantumOperator:
         """
         # convert other to quantum operator
         if isinstance(other, PauliOperator):
-            other = QuantumOperator(N=other.N, terms={other.type: other.coeff})
+            other = QuantumOperator(N=other.N, terms={other.pauli_type: other.coeff})
         if not isinstance(other, QuantumOperator):
             raise TypeError("QuantumOperator.project: other must be a QuantumOperator or PauliOperator")
         # set ansatz (to get coefficient vectors)
@@ -1545,7 +1546,7 @@ class QuantumOperator:
             ## print terms that cannot be measured and break if return_required_bases=False
             if can_be_measured_term==False:
                 if no_output==False:
-                    print("term {} cannot be measured in bases {}".format(term.type,bases))
+                    print("term {} cannot be measured in bases {}".format(term.pauli_type,bases))
                 if not return_required_bases:
                     break
         #--------------------------------#
@@ -1575,8 +1576,8 @@ class QuantumOperator:
         non_measurable_terms (list of PauliOperator objects)
             list of terms that cannot be measured in any basis
         """
-        terms_nonI = [term for term in self.terms.values() if term.type!="I"*self.N]
-        all_bases = [basis for basis in bases if basis!="I"*self.N]
+        terms_nonI = [term for term in self.terms.values() if term.pauli_type!="I"*self.N]
+        all_bases = [basis for basis in bases if basis!="I"*self.pauli_N]
         #--------------------------------#
         ### STEP 1 ### split terms into measurable and non-measurable
         terms_per_basis = {basis:[] for basis in all_bases}
@@ -1694,7 +1695,7 @@ class QuantumOperator:
             qop =  QuantumOperator(N=self.N*extension_factor)
             for term in self.terms:
                 term_extended_key = sys_inx*"I"*self.N + term + (extension_factor-sys_inx-1)*"I"*self.N
-                term_extended = PauliOperator(N=self.N*extension_factor, coeff=self.terms[term].coeff, type=term_extended_key)
+                term_extended = PauliOperator(N=self.N*extension_factor, coeff=self.terms[term].coeff, pauli_type=term_extended_key)
                 qop.add_term(term_extended)
             qops_extended.append(qop)
         #-----------------------------------
@@ -1737,7 +1738,7 @@ class Dissipator:
     """
     def __init__(self, 
                 N: int, 
-                type: tuple, 
+                diss_type: tuple, 
                 coeff: complex = 1.0
                 ):
         """
@@ -1747,13 +1748,13 @@ class Dissipator:
         ----------
         N : int
             number of qubits
-        type : tuple
+        diss_type : tuple
             type of the dissipator, e.g. ``("ZII","ZII")``
         coeff : complex number, optional
             dissipation rate of the dissipator. Default is ``1.0``.
         """
         self._N = N
-        self.type = type
+        self.diss_type = diss_type
         self.coeff = coeff
     ### ----------------- ###
     ### custom attributes ###
@@ -1766,18 +1767,18 @@ class Dissipator:
     def type(self):
         return self._type
     @type.setter
-    def type(self, type):
-        # check if type is a tuple of length 2
-        if len(type) != 2:
-            raise ValueError("type must be a tuple of length 2, but has length {}".format(len(type)))
-        # check if each string in type has correct lenght
-        if len(type[0]) != self.N or len(type[1]) != self.N:
-            raise ValueError("type = {}, but must be a tuple of two strings of length Nions".format(type))
-        # check if each string in type is a valid pauli string
-        if not all([c in ["I", "X", "Y", "Z", "M", "P"] for c in type[0]]) or not all([c in ["I", "X", "Y", "Z", "M", "P"] for c in type[1]]):
+    def type(self, diss_type):
+        # check if diss_type is a tuple of length 2
+        if len(diss_type) != 2:
+            raise ValueError("type must be a tuple of length 2, but has length {}".format(len(diss_type)))
+        # check if each string in diss_type has correct length
+        if len(diss_type[0]) != self.N or len(diss_type[1]) != self.N:
+            raise ValueError("type = {}, but must be a tuple of two strings of length Nions".format(diss_type))
+        # check if each string in diss_type is a valid pauli string
+        if not all([c in ["I", "X", "Y", "Z", "M", "P"] for c in diss_type[0]]) or not all([c in ["I", "X", "Y", "Z", "M", "P"] for c in diss_type[1]]):
             raise ValueError("type must be a valid pauli string")
         # set type
-        self._type = type
+        self._type = diss_type
     @property
     def coeff(self):
         return self._coeff
@@ -1799,7 +1800,7 @@ class Dissipator:
         Dissipator
             A new instance with the same attributes as this dissipator.
         """
-        return Dissipator(N=self.N, coeff=self.coeff, type=self.type)
+        return Dissipator(N=self.N, coeff=self.coeff, diss_type=self.diss_type)
     
     def __str__(self):
         return self.str()
@@ -1853,7 +1854,7 @@ class Dissipator:
                 opstr += "c({})".format(index)
         else:
             opstr += "{}*".format(coeff)
-        opstr += self.type[0]+","+self.type[1]          
+        opstr += self.diss_type[0]+","+self.diss_type[1]          
         return opstr
     
     def __eq__(self, 
@@ -1876,7 +1877,7 @@ class Dissipator:
         if not isinstance(other, Dissipator):
             raise TypeError("dissipator.__eq__: other must be a dissipator")
         # check type
-        typeval = self.type==other.type
+        typeval = self.diss_type==other.diss_type
         # check coefficient
         if self.coeff is None or other.coeff is None:
             coeffval = True
@@ -1925,8 +1926,8 @@ class Dissipator:
         if isinstance(operator, PauliOperator):
             operator = operator.to_quantum_operator()
         # get required operator
-        pop1 = PauliOperator(N=self.N, coeff=1.0, type=self.type[0]).to_quantum_operator()
-        pop2 = PauliOperator(N=self.N, coeff=1.0, type=self.type[1]).to_quantum_operator()
+        pop1 = PauliOperator(N=self.N, coeff=1.0, pauli_type=self.diss_type[0]).to_quantum_operator()
+        pop2 = PauliOperator(N=self.N, coeff=1.0, pauli_type=self.diss_type[1]).to_quantum_operator()
         pop1_dag = pop1.dagger()
         pop2_dag = pop2.dagger()
         # get terms
@@ -1957,7 +1958,7 @@ class Dissipator:
             raise ValueError("dissipator.__mul__: other={}, but must be real".format(other))
         other = np.real(other)
         # scalar multiplication
-        return Dissipator(N=self.N, coeff=self.coeff * other, type=self.type)
+        return Dissipator(N=self.N, coeff=self.coeff * other, diss_type=self.diss_type)
 
     def __rmul__(self, other) -> Dissipator:
         """
@@ -1989,8 +1990,8 @@ class Dissipator:
         int 
             range of the dissipator
         """
-        non_I_indices1 = [i for i, x in enumerate(self.type[0]) if x != "I"]
-        non_I_indices2 = [i for i, x in enumerate(self.type[1]) if x != "I"]
+        non_I_indices1 = [i for i, x in enumerate(self.diss_type[0]) if x != "I"]
+        non_I_indices2 = [i for i, x in enumerate(self.diss_type[1]) if x != "I"]
         non_I_indices = non_I_indices1 + non_I_indices2
         # return the maximal distance between two non I entries
         maxran = 0
@@ -2010,8 +2011,8 @@ class Dissipator:
         list of int
             support of the dissipator
         """
-        non_I_indices1 = [i for i, x in enumerate(self.type[0]) if x != "I"]
-        non_I_indices2 = [i for i, x in enumerate(self.type[1]) if x != "I"]
+        non_I_indices1 = [i for i, x in enumerate(self.diss_type[0]) if x != "I"]
+        non_I_indices2 = [i for i, x in enumerate(self.diss_type[1]) if x != "I"]
         non_I_indices = non_I_indices1 + non_I_indices2
         return non_I_indices
     
@@ -2028,15 +2029,15 @@ class Dissipator:
             center of the dissipator
         """
         # find index with non-I term
-        non_I_indices1 = [i for i, x in enumerate(self.type[0]) if x != "I"]
-        non_I_indices2 = [i for i, x in enumerate(self.type[1]) if x != "I"]
+        non_I_indices1 = [i for i, x in enumerate(self.diss_type[0]) if x != "I"]
+        non_I_indices2 = [i for i, x in enumerate(self.diss_type[1]) if x != "I"]
         non_I_indices = non_I_indices1 + non_I_indices2
         if len(non_I_indices) not in [1,2]:
-            raise ValueError("dissipator.type must contain exactly one or two non-I terms")
+            raise ValueError("dissipator.diss_type must contain exactly one or two non-I terms")
         if len(non_I_indices) == 1:
-            center = non_I_indices[0]-(len(self.type[0])-1)/2
+            center = non_I_indices[0]-(len(self.diss_type[0])-1)/2
         elif len(non_I_indices) == 2:
-            center = (non_I_indices[0]+non_I_indices[1])/2-(len(self.type[0])-1)/2
+            center = (non_I_indices[0]+non_I_indices[1])/2-(len(self.diss_type[0])-1)/2
         return center
 
     def extend_to_larger_system(self, 
@@ -2062,8 +2063,8 @@ class Dissipator:
         ### STEP 1 ### extend individual terms
         dissipators_extended = []
         for sys_inx in range(extension_factor):
-            type_extended = (sys_inx*"I"*self.N+self.type[0]+(extension_factor-sys_inx-1)*"I"*self.N, sys_inx*"I"*self.N+self.type[1]+(extension_factor-sys_inx-1)*"I"*self.N)
-            diss_extended = Dissipator(N=self.N*extension_factor, coeff=self.coeff, type=type_extended)
+            type_extended = (sys_inx*"I"*self.N+self.diss_type[0]+(extension_factor-sys_inx-1)*"I"*self.N, sys_inx*"I"*self.N+self.diss_type[1]+(extension_factor-sys_inx-1)*"I"*self.N)
+            diss_extended = Dissipator(N=self.N*extension_factor, coeff=self.coeff, diss_type=type_extended)
             dissipators_extended.append(diss_extended)
         #-----------------------------------
         return dissipators_extended
@@ -2087,7 +2088,7 @@ class CollectiveSpinOperator:
     """
     def __init__(self,
                 N: int, 
-                type: str, 
+                spin_type: str, 
                 coeff: complex = 1.0
                 ):
         """
@@ -2095,13 +2096,13 @@ class CollectiveSpinOperator:
         ----------
         N : int
             Number of qubits.
-        type : string
+        spin_type : string
             Type of the collective spin operator, among [``"X"``,``"Y"``,``"Z"``]
         coeff : complex number, optional
             Coefficient of the collective spin operator. Default is ``1.0``.
         """
         self._N = N 
-        self.type = type 
+        self.spin_type = spin_type 
         self.coeff = coeff
     ### ----------------- ###
     ### custom attributes ###
@@ -2111,15 +2112,15 @@ class CollectiveSpinOperator:
     def N(self):
         return self._N
     @property
-    def type(self):
+    def spin_type(self):
         return self._type
-    @type.setter
-    def type(self, type):
-        # check if type is a valid collective string
-        if not type in ["X","Y","Z"]:
-            raise ValueError("type is {}, but must be a valid string among X, Y, Z".format(type))
+    @spin_type.setter
+    def spin_type(self, spin_type):
+        # check if spin_type is a valid collective string
+        if spin_type not in ["X","Y","Z"]:
+            raise ValueError("type is {}, but must be a valid string among X, Y, Z".format(spin_type))
         # set type
-        self._type = type
+        self._spin_type = spin_type
     @property
     def coeff(self):
         return self._coeff
@@ -2142,7 +2143,7 @@ class CollectiveSpinOperator:
         CollectiveSpinOperator
             A new instance with the same attributes as this operator.
         """
-        return CollectiveSpinOperator(N=self.N, coeff=self.coeff, type=self.type)
+        return CollectiveSpinOperator(N=self.N, coeff=self.coeff, spin_type=self.spin_type)
     
     def __str__(self):
         return self.str()
@@ -2155,7 +2156,7 @@ class CollectiveSpinOperator:
         str
             String representation of the CollectiveSpinOperator
         """
-        return "{}*collective{}".format(self.coeff, self.type)
+        return "{}*collective{}".format(self.coeff, self.spin_type)
     
     def to_quantum_operator(self) -> QuantumOperator:
         """
@@ -2166,7 +2167,7 @@ class CollectiveSpinOperator:
         QuantumOperator
             QuantumOperator representation of the CollectiveSpinOperator
         """
-        qop = QuantumOperator(self.N, terms={"I"*inx+self.type+"I"*(self.N-inx-1): self.coeff for inx in range(self.N)})
+        qop = QuantumOperator(self.N, terms={"I"*inx+self.spin_type+"I"*(self.N-inx-1): self.coeff for inx in range(self.N)})
         return qop
 
     def __mul__(self, other) -> CollectiveSpinOperator:
@@ -2187,7 +2188,7 @@ class CollectiveSpinOperator:
         if not isinstance(other, (int,float,complex)):
             raise TypeError("CollectiveSpinOperator.__mul__: other must be a complex number")
         # scalar multiplication
-        return CollectiveSpinOperator(N=self.N, coeff=self.coeff * other, type=self.type)
+        return CollectiveSpinOperator(N=self.N, coeff=self.coeff * other, spin_type=self.spin_type)
 
     def __rmul__(self, other) -> CollectiveSpinOperator:
         """
@@ -2295,9 +2296,9 @@ def get_expval_from_Zproduct_state(qop,
     """
     # check if qop is a quantum operator
     if isinstance(qop, PauliOperator):
-        qop = QuantumOperator(N=qop.N, terms={qop.type: qop.coeff})
+        qop = QuantumOperator(N=qop.N, terms={qop.pauli_type: qop.coeff})
     elif not isinstance(qop, QuantumOperator):
-        raise TypeError("get_expval_from_product_state: qop must be a either a PauliOperator or a quantum_operator")
+        raise TypeError("get_expval_from_product_state: qop must be either a PauliOperator or a quantum_operator")
     pops = qop.terms
     for pop in pops:
         # check if pop has a non-z index
@@ -2545,7 +2546,7 @@ def find_conserved_quantities(qops_list,
     for qop in qops_list:
         commutators = []
         for pstr in pstr_list:
-            commutators.append(qop.commutator(PauliOperator(N=N, coeff=1.0, type=pstr)))
+            commutators.append(qop.commutator(PauliOperator(N=N, coeff=1.0, pauli_type=pstr)))
         comm_matrix_parts.append(np.array([comm.to_vector() for comm in commutators]).transpose())
     comm_matrix = np.concatenate(comm_matrix_parts, axis=0)
     # comm_matrix = np.array([comm.to_vector() for comm in commutators]).transpose()

@@ -1,4 +1,3 @@
-
 """
 This module contains utility functions for working with data and memory.
 """
@@ -55,7 +54,7 @@ def get_size(obj):
     # Exclude modules as well.
     BLACKLIST = type, ModuleType, FunctionType
     if isinstance(obj, BLACKLIST):
-        raise TypeError('getsize() does not take argument of type: '+ str(type(obj)))
+        raise TypeError(f'getsize() does not take argument of type: {type(obj)}')
     seen_ids = set()
     size = 0
     objects = [obj]
