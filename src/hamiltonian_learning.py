@@ -933,8 +933,12 @@ class Ansatz:
                             ## evaluate dissterm from evaluated terms
                             mo3kzval_list = np.sum([np.multiply(evaluated_terms[term.type][0],term.coeff) for term in dissterm.terms.values()],axis=0)
                             var_mo3kzval_list = np.sum([np.multiply(evaluated_terms[term.type][1],term.coeff) for term in dissterm.terms.values()],axis=0)
-                            constraint_tensor_dissipators_list[:,:,cinx,terminx,dissinx] = mo3kzval_list
-                            var_constraint_tensor_dissipators_list[:,:,cinx,terminx,dissinx] = var_mo3kzval_list
+                            # check if values are real
+                            if not np.isclose(mo3kzval_list.imag,0):
+                                print("Imaginary part of mo3kzval is not zero, but " + str(np.round(mo3kzval_list.imag,3)) + ".")
+                            # add to constraint tensor
+                            constraint_tensor_dissipators_list[:,:,cinx,terminx,dissinx] = np.real(mo3kzval_list)
+                            var_constraint_tensor_dissipators_list[:,:,cinx,terminx,dissinx] = np.real(var_mo3kzval_list)
         # -----------------------------------------------------
         ##################
         ### BAL method ###
@@ -1934,8 +1938,8 @@ class Ansatz:
                 ## parametrize bounds (par = G^T @ non-par)
                 if self.gamma_bounds is not None:
                     gamma_bounds = np.array(self.gamma_bounds)
-                    lb = np.einsum("ji,j", parametrization_matrices[1], gamma_bounds[:,0])
-                    ub = np.einsum("ji,j", parametrization_matrices[1], gamma_bounds[:,1])
+                    lb = np.real(np.einsum("ji,j", parametrization_matrices[1], gamma_bounds[:,0]))
+                    ub = np.real(np.einsum("ji,j", parametrization_matrices[1], gamma_bounds[:,1]))
                     gamma_bounds = [(np.min([lb[inx],ub[inx]]), np.max([lb[inx],ub[inx]])) for inx in range(len(lb))]
                     # check if lower bound is not larger than upper bound
                     if not all([gamma_bounds[inx][0]<=gamma_bounds[inx][1] for inx in range(len(gamma_bounds))]):

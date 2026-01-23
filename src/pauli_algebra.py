@@ -860,7 +860,7 @@ class QuantumOperator:
                 other_coeffs = other_coeffs / np.linalg.norm(other_coeffs)
             if other_dissrates is not None:
                 other_coeffs = np.concatenate((other_coeffs, other_dissrates))
-            plt.plot(range(len(other_coeffs)), other_coeffs, "x", label="other", color="k", linestyle=linestyle)     
+            plt.plot(range(len(other_coeffs)), np.real(other_coeffs), "x", label="other", color="k", linestyle=linestyle)     
         if var is None:
             plt.plot(range(len(coeffs)), coeffs, "o", label="self", color="tab:red", linestyle=linestyle)
             if add_labels:
@@ -869,7 +869,7 @@ class QuantumOperator:
                 plt.xticks(range(len(coeffs)), labels, rotation=90)
         else:
             # add errorbars to plot
-            plt.errorbar(range(len(coeffs)), coeffs, yerr=np.sqrt(var_coeffs), fmt="o", label="self", color="tab:red", linestyle=linestyle)
+            plt.errorbar(range(len(coeffs)), np.real(coeffs), yerr=np.sqrt(np.real(var_coeffs)), fmt="o", label="self", color="tab:red", linestyle=linestyle)
             if add_labels:
                 labels = list(self.terms.keys()) + ["diss"]*(len(coeffs)-len(self.terms.keys()))
                 plt.xticks(range(len(coeffs)), labels, rotation=90)
