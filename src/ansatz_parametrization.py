@@ -307,6 +307,12 @@ class ParametrizationFunction:
     ### ---------------------------- ###
     ### Parametrize_function methods ###
     ### ---------------------------- ###
+    def copy(self):
+        """
+        Return a copy of the ParametrizationFunction.
+        """
+        return ParametrizationFunction(coherent=self.coherent, criterion=self.criterion, param_type=self.param_type, operator=self.operator, dissipators=self.dissipators, cutoff=self.cutoff, range=self.range, subsystems=self.subsystems, not_subsystems=self.not_subsystems, parameters=self.parameters, exact_parameters=self.exact_parameters, bounds=self.bounds)
+
     def __eq__(self, 
             other: ParametrizationFunction
             ) -> bool:

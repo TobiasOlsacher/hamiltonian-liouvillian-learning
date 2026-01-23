@@ -132,6 +132,17 @@ class QuantumSimulator:
             shot_to_shot_fluctuation_rate = self.shot_to_shot_fluctuation_rate
         )
 
+    def str(self) -> str:
+        """
+        Return the string representation of the QuantumSimulator.
+        """
+        return "QuantumSimulator(Nions={}, hamiltonian={}, dissipators={}, rotating_frame={}, measurement_error={}, n_error_batch={}, shot_to_shot_fluctuation_rate={})".format(self.Nions, self.hamiltonian, self.dissipators, self.rotating_frame, self.measurement_error, self.n_error_batch, self.shot_to_shot_fluctuation_rate)
+    def __str__(self) -> str:
+        return self.str()
+
+    def __repr__(self) -> str:
+        return self.str()
+
     def get_final_states(self, 
                         initial_state: QuantumState, 
                         times: list[float], 

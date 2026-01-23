@@ -2113,7 +2113,7 @@ class CollectiveSpinOperator:
         return self._N
     @property
     def spin_type(self):
-        return self._type
+        return self._spin_type
     @spin_type.setter
     def spin_type(self, spin_type):
         # check if spin_type is a valid collective string

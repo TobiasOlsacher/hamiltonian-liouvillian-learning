@@ -411,37 +411,37 @@ class QuantumState:
         state_extended = QuantumState(N=self.N*extension_factor, excitations=excitations, basis=basis, state_preparation=self.state_preparation, state_preparation_label=self.state_preparation_label, state_preparation_error=self.state_preparation_error)
         return state_extended
 
-    def split_into_basis(self, 
-                        basis: list
-                        ) -> list:
-        """
-        Expands the QuantumState in a given basis.
-        Returns the corresponding expansion coefficients.
+    # def split_into_basis(self, 
+    #                     basis: list
+    #                     ) -> list:
+    #     """
+    #     Expands the QuantumState in a given basis.
+    #     Returns the corresponding expansion coefficients.
 
-        Parameters
-        ----------
-        basis : list of QuantumStates
-            basis in which the state is expanded
+    #     Parameters
+    #     ----------
+    #     basis : list of QuantumStates
+    #         basis in which the state is expanded
 
-        Returns
-        -------
-        coeffs : list of floats
-            expansion coefficients of the state in the given basis
-        """
-        ### STEP 0 ### validate input
-        # check if basis is a list of QuantumState objects
-        if not isinstance(basis, list) or not all([isinstance(x, QuantumState) for x in basis]):
-            raise TypeError("basis is not a list of QuantumState objects.")
-        #--------------------------------
-        ### STEP 1 ### get coefficients via inner products (QuTip)
-        psi0 = self.to_QuTip()
-        coeffs = []
-        for state in basis:
-            psi1 = state.to_QuTip()
-            coeff = qt.expect(psi1.dag(), psi0)
-            coeffs.append(coeff)
-        #--------------------------------
-        return coeffs
+    #     Returns
+    #     -------
+    #     coeffs : list of floats
+    #         expansion coefficients of the state in the given basis
+    #     """
+    #     ### STEP 0 ### validate input
+    #     # check if basis is a list of QuantumState objects
+    #     if not isinstance(basis, list) or not all([isinstance(x, QuantumState) for x in basis]):
+    #         raise TypeError("basis is not a list of QuantumState objects.")
+    #     #--------------------------------
+    #     ### STEP 1 ### get coefficients via inner products (QuTip)
+    #     psi0 = self.to_QuTip()
+    #     coeffs = []
+    #     for state in basis:
+    #         psi1 = state.to_QuTip()
+    #         coeff = qt.expect(psi1.dag(), psi0)
+    #         coeffs.append(coeff)
+    #     #--------------------------------
+    #     return coeffs
 
     @staticmethod
     def get_state_preparation_from_data(
