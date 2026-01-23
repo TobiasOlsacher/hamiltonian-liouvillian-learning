@@ -6,3 +6,4 @@ tqdm==4.67.1
 pandas==2.2.2
 networkx==3.3
 sympy==1.13.2
+icecream==2.1.3
