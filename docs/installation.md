@@ -6,5 +6,5 @@
 ## Steps
 1. Clone the repo:
 ```bash
-git clone https://github.com/yourusername/project.git
+git clone https://github.com/TobiasOlsacher/hamiltonian-liouvillian-learning.git
 cd project
