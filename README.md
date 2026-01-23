@@ -4,4 +4,4 @@ Example notebooks can be found in the ``../examples`` folder.
 
 The ``requirements.txt`` was created via ``pip freeze > requirements.txt``.
 
-![Tests](https://github.com/<username>/<repo>/actions/workflows/tests.yml/badge.svg)
+![Tests](https://github.com/TobiasOlsacher/hamiltonian-liouvillian-learning/actions/workflows/tests.yml/badge.svg)
