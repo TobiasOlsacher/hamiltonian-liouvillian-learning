@@ -1,0 +1,12 @@
+.DS_Store
+# python cache
+__pycache__/
+*.pyc
+# data files
+*.mat
+*.pkl
+*.dat
+*.zip
+# folders
+\tests
+

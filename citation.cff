@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Olsacher"
+  given-names: "Tobias"
+  orcid: "https://orcid.org/0000-0002-2307-4657"
+title: "Hamiltonian and Liouvillian learning in weakly-dissipative quantum many-body systems"
+version: 1.0.0
+date-released: 2026-01-25
+url: "https://github.com/TobiasOlsacher/hamiltonian-liouvillian-learning.git"
