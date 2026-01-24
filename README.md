@@ -3,7 +3,7 @@
 > Hamiltonian and Liouvillian learning in weakly-dissipative quantum many-body systems
 
 
-[![Tests](https://github.com/<username>/<repo>/actions/workflows/tests.yml/badge.svg)](https://github.com/<username>/<repo>/actions)
+[![Tests](https://github.com/<username>/<repo>/actions/workflows/tests.yml/badge.svg)](https://github.com/TobiasOlsacher/hamiltonian-liouvillian-learning/actions)
 
 ---
 
