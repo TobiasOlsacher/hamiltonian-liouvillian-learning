@@ -1,9 +1,9 @@
-# Hamiltonian–Liouvillian Learning
+# Hamiltonian Liouvillian Learning
 
-> Hamiltonian and Liouvillian learning in weakly-dissipative quantum many-body systems
+> Hamiltonian and Liouvillian learning in weakly-dissipative quantum many-body systems.
 
 
-[![Tests](https://github.com/<username>/<repo>/actions/workflows/tests.yml/badge.svg)](https://github.com/TobiasOlsacher/hamiltonian-liouvillian-learning/actions)
+[![Tests](https://github.com/TobiasOlsacher/hamiltonian-liouvillian-learning/actions/workflows/tests.yml/badge.svg)](https://github.com/TobiasOlsacher/hamiltonian-liouvillian-learning/actions)
 
 ---
 
@@ -13,11 +13,17 @@ This package contains tools for Hamiltonian and Liouvillian learning from measur
 
 It also contains a numerical quantum simulator built on top of the **QuTiP** master equation solver.
 
+The package allows you to:
+- Generate measurement data from a mock experiment defined by a master equation in Lindblad form.
+- Learn the Hamiltonian and Lindblad operators form the data using one of several learning methods.
+
 Example notebooks can be found in the ``../examples`` folder.
 
-The package allows you to:
-- generate measurement data from a mock experiment defined by a master equation in Lindblad form
-- learn the Hamiltonian and Lindblad operators form the data using one of several learning methods
+Relevant references are:
+- ``Olsacher et al Hamiltonian and Liouvillian learning in weakly-dissipative quantum many-body systems. (2025)``
+- ``França et al. Efficient and robust estimation of many-qubit Hamiltonians (2024)`` 
+- ``Kraft et al. Bounded-Error Quantum Simulation via Hamiltonian and Lindbladian Learning (2026)``
+- ``Evans et al. Scalable Bayesian Hamiltonian learning (2019)``
 
 ---
 
