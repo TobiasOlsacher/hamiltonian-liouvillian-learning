@@ -1,6 +1,6 @@
 # Hamiltonian Liouvillian Learning
 
-> Hamiltonian and Liouvillian learning in weakly-dissipative quantum many-body systems and bounded-error quantum simulation.
+> Easy-to-use tools for quantum Hamiltonian and Liouvillian learning from measurement data.
 
 
 [![Tests](https://github.com/TobiasOlsacher/hamiltonian-liouvillian-learning/actions/workflows/tests.yml/badge.svg)](https://github.com/TobiasOlsacher/hamiltonian-liouvillian-learning/actions)
@@ -9,12 +9,9 @@
 
 ## Overview
 
-This package contains tools for Hamiltonian and Liouvillian learning from measurement data.
-It also contains a numerical quantum simulator built on top of the **QuTiP** master equation solver.
-
-The package allows you to:
-- Generate measurement data from a mock experiment defined by a master equation in Lindblad form.
-- Learn the Hamiltonian and Lindblad operators from the data using one of several learning methods.
+This package allows you to:
+- Generate measurement data from a mock quantum simulation experiment defined by a master equation in Lindblad form (using **QuTiP**).
+- Learn the Hamiltonian and Lindblad operators from measurement data using different learning methods from the literature.
 - Calculate error bounds for quantum observables from the uncertainty in the parameters of the learned Hamiltonian and Lindblad operators.
 
 Example notebooks can be found in the ``../examples`` folder.
