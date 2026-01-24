@@ -20,6 +20,7 @@ from icecream import ic
 from collections import Counter
 import time
 from tqdm import tqdm
+from typing import Literal
 from src.quantum_state import QuantumState
 from src.measurement_setting import MeasurementSetting
 from src.quantum_simulator import QuantumSimulator
@@ -94,7 +95,7 @@ class Constraint:
     constraint_operator : QuantumOperator
         Observable to be measured as a constraint.
         The constraint is measured at the first and last element of simulation_times.
-        Only used for BAL and ZYLB method.
+        Only used for random-time-traces and short-time-evolution method.
     nshots_ratio_integrand : float, optional
         Ratio of number of shots used for each time step in the integrand, 
         compared to the number of shots used at the end points.
@@ -313,7 +314,7 @@ class Ansatz:
         If True, saves the landscape of the optimization over disspation rates.
         Default is False
     exclude_lowest_solutions : int, optional
-        Number of lowest solutions to exclude from the result for the O3KZ learning method.
+        Number of lowest solutions to exclude from the result for the generalized-energy-conservation learning method.
         E.g. if exclude_lowest_solutions is ``1``, we are solving for the second-lowest singular value.
         This can be useful if there exists a conserved quantity that should be excluded.
         Default is ``0``.
@@ -417,7 +418,7 @@ class Ansatz:
             If True, saves the landscape of the optimization over disspation rates.
             Default is False
         exclude_lowest_solutions : int, optional
-            Number of lowest solutions to exclude from the result for the O3KZ learning method.
+            Number of lowest solutions to exclude from the result for the generalized-energy-conservation learning method.
             E.g. if exclude_lowest_solutions is ``1``, we are solving for the second-lowest singular value.
             This can be useful if there exists a conserved quantity that should be excluded.
             Default is ``0``.
@@ -554,7 +555,7 @@ class Ansatz:
     def get_data(
             self, 
             Qsim: QuantumSimulator,
-            method: str,
+            method: Literal["generalized-energy-conservation", "random-time-traces", "short-time-evolution"],
             nshots: int,
             constraints: list | None = None,
             suggested_measurement_bases: list | None = None, 
@@ -571,7 +572,7 @@ class Ansatz:
             The QuantumSimulator object used to generate the measurement data.
         method : str
             The learning method for which the data is generated.
-            Options are "O3KZ", "BAL" or "ZYLB".
+            Options are "generalized-energy-conservation", "random-time-traces" or "short-time-evolution".
         nshots : int
             (Maximal) number of shots taken for each measurement basis.
             If nshots is ``0``, only exact expectation values are generated.
@@ -620,7 +621,7 @@ class Ansatz:
 
     def get_required_operator(
             self, 
-            method: str, 
+            method: Literal["generalized-energy-conservation", "random-time-traces", "short-time-evolution"],
             constraint_operators: list | None = None
             ) -> tuple[QuantumOperator, QuantumOperator]:
         """
@@ -634,10 +635,10 @@ class Ansatz:
         ----------
         method : str
             The learning method for which the operator is generated.
-            Options are "O3KZ", "BAL" or "ZYLB".
+            Options are "generalized-energy-conservation", "random-time-traces" or "short-time-evolution".
         constraint_operators : list of QuantumOperators 
             List of constraint operators used for the learning.
-            Required for learning using BAL or ZYLB method.
+            Required for learning using random-time-traces or short-time-evolution method.
 
         Returns
         -------
@@ -649,13 +650,13 @@ class Ansatz:
         ### STEP 1 ### get required operator (depends on ansatz, method and constraints)
         required_operator_endpoints = None
         required_operator_integrand = None
-        ### BAL or ZYLB method
-        if method in ["BAL", "ZYLB"]:
+        ### random-time-traces or short-time-evolution method
+        if method in ["random-time-traces", "short-time-evolution"]:
             identity = QuantumOperator(self.Nions, terms={"I"*self.Nions:1})
             required_operator_endpoints = identity
             required_operator_integrand = identity
             if constraint_operators is None:
-                raise ValueError("For BAL or ZYLB method constraint_operators cannot be None.")
+                raise ValueError("For random-time-traces or short-time-evolution method constraint_operators cannot be None.")
             ## constraint operators
             for cinx in range(len(constraint_operators)):
                 required_operator_endpoints += constraint_operators[cinx]
@@ -676,8 +677,8 @@ class Ansatz:
                             term.remove_zero_coeffs()
                             required_operator_integrand += term
         #--------
-        ### O3KZ method
-        elif method == "O3KZ":
+        ### generalized-energy-conservation method
+        elif method == "generalized-energy-conservation":
             required_operator_integrand = QuantumOperator(self.Nions)
             # terms for Hamiltonian
             required_operator_endpoints = self.ansatz_operator.copy()
@@ -703,7 +704,7 @@ class Ansatz:
 
     def get_required_operators_from_constraints(
             self, 
-            method: str, 
+            method: Literal["generalized-energy-conservation", "random-time-traces", "short-time-evolution"],
             constraints: list
             ) -> tuple[dict, dict]:
         """
@@ -718,7 +719,7 @@ class Ansatz:
         ----------
         method : str
             The learning method for which the operator is generated.
-            Options are "O3KZ", "BAL" or "ZYLB".
+            Options are "generalized-energy-conservation", "random-time-traces" or "short-time-evolution".
         constraints : list of Constraints
             List of Constraint objects to be used for learning.
         
@@ -766,7 +767,7 @@ class Ansatz:
     def get_constraint_tensors(
             self, 
             constraints: list,
-            method: str, 
+            method: Literal["generalized-energy-conservation", "random-time-traces", "short-time-evolution"],
             nshots: int | list = -1, 
             required_terms: tuple | None = None, 
             evaluate_variance: bool = False, 
@@ -781,22 +782,22 @@ class Ansatz:
 
         Adds constraint tensor and vector to the ansatz object.
         If n_resampling is set, saves constraint_tensors_samples instead of constraint_tensors.
-        NOTE: For BAL method a constraint is used as soon as there is a single non-nan entry for the integral
+        NOTE: For random-time-traces method a constraint is used as soon as there is a single non-nan entry for the integral
         NOTE: The new bottleneck is RAM and calculation of the constraint tensor entries?
 
         Parameters
         ----------
         method : str
             Method for which to generate the constraint tensor and vector.
-            Options are "O3KZ", "BAL" or "ZYLB".
+            Options are "generalized-energy-conservation", "random-time-traces" or "short-time-evolution".
         nshots : int or list of ints, optional
             Number of shots used to estimate expectation values.
-            For ZYLB entries, each expectation value is estimated using nshots number of measurements.
-            For integration in O3KZ, BAL entries, the number of measurements at each time step equals nshots/ntimes.
+            For short-time-evolution entries, each expectation value is estimated using nshots number of measurements.
+            For integration in generalized-energy-conservation, random-time-traces entries, the number of measurements at each time step equals nshots/ntimes.
             If nshots=0, exact expectation values are used.
             If nshots=-1, all available measurements are used. 
             If nshots is a list, get_constraint_tensors() is called recursively for each value.
-            NOTE: For ZYLB method, nshots is set to ``0`` at ``t=0``.
+            NOTE: For short-time-evolution method, nshots is set to ``0`` at ``t=0``.
             Default is ``-1``.
         required_terms : tuple, optional
             Required terms to be measured for the given states and times.
@@ -855,9 +856,9 @@ class Ansatz:
         # ----------------------------------------------------------------
         ### STEP 1 ### get the constraint tensor and vector
         #################################
-        ### O3KZ method for integrals ###
+        ### generalized-energy-conservation method for integrals ###
         #################################
-        if method == "O3KZ":
+        if method == "generalized-energy-conservation":
             ### STEP 1 ### setup constraint tensors
             # setup constraint tensor for ansatz_operator
             shape = tuple([len(nshots)] + [n_resampling[1]] + [len(constraints)] + [len(self.ansatz_operator.terms.keys())])
@@ -957,10 +958,10 @@ class Ansatz:
                             var_constraint_tensor_dissipators_list[:,:,cinx,terminx,dissinx] = np.real(var_mo3kzval_list)
         # -----------------------------------------------------
         ##################
-        ### BAL method ###
+        ### random-time-traces method ###
         ##################
         # NOTE: The bottleneck is evaluating the constraint tensor? and RAM?
-        elif method == "BAL":
+        elif method == "random-time-traces":
             tm1 = tm.time()
             # -----------------------------------------------------
             ### STEP 1 ### setup constraint vector and tensor
@@ -983,23 +984,23 @@ class Ansatz:
                 pstr_get_con_tens = "time for setup tensors and get nruns = {}".format(tm2-tm1)
                 ic(pstr_get_con_tens)
             # -----------------------------------------------------
-            ### STEP 2 ### determine all required terms for BAL method (NOTE: this is the bottleneck)
+            ### STEP 2 ### determine all required terms for random-time-traces method (NOTE: this is the bottleneck)
             if required_terms is not None:
-                pstr_get_con_tens = "use provided required terms for BAL method"
+                pstr_get_con_tens = "use provided required terms for random-time-traces method"
                 ic(pstr_get_con_tens)
                 required_terms_endpoints, required_terms_integrand = required_terms
             else:
-                pstr_get_con_tens = "automatically determine required terms for BAL method"
+                pstr_get_con_tens = "automatically determine required terms for random-time-traces method"
                 ic(pstr_get_con_tens)
                 # required_terms are dicts of (state,time):qop pairs
                 required_terms_endpoints, required_terms_integrand = self.get_required_operators_from_constraints(method, constraints)
             ### check if all required terms have coeff 1
             for key, qop in required_terms_endpoints.items():
                 if not np.allclose(qop.coeffs(),1):
-                    raise ValueError("Required term for BAL method does not have coeff ``1``.")
+                    raise ValueError("Required term for random-time-traces method does not have coeff ``1``.")
             for key, qop in required_terms_integrand.items():
                 if not np.allclose(qop.coeffs(),1):
-                    raise ValueError("Required term for BAL method does not have coeff ``1``.")
+                    raise ValueError("Required term for random-time-traces method does not have coeff ``1``.")
             if print_timers:
                 tm3 = tm.time()
                 pstr_get_con_tens = "time get required terms = {}".format(tm3-tm2)
@@ -1215,11 +1216,11 @@ class Ansatz:
                 ic("--------------------------------")
         # -----------------------------------------------------
         ###################
-        ### ZYLB method ###
+        ### short-time-evolution method ###
         ###################
-        # TODO we evaluate exact expectation values at 0 for ZYLB method
-        elif method == "ZYLB":
-            raise ValueError("ZYLB method not implemented yet. Has to be updated for n_resampling.")
+        # TODO we evaluate exact expectation values at 0 for short-time-evolution method
+        elif method == "short-time-evolution":
+            raise ValueError("short-time-evolution method not implemented yet. Has to be updated for n_resampling.")
             # setup constraint tensor and vector
             nterms=0
             if self.ansatz_operator is not None:
@@ -1241,7 +1242,7 @@ class Ansatz:
                         # tmp_varvals = np.transpose([self.data_set.evaluate_observable(state,time,constraint,nshots=nshots,evaluate_variance=True,Gaussian_noise=Gaussian_noise) for time in simulation_times[tinx]])
                         # check if bbalval_list is real
                         if not np.allclose(np.round(bzylbval_list.imag,0),0):
-                            print("Imaginary part of ZYLB constraint vector element is not zero, but " + str(np.round(bzylbval_list.imag,3)) + ".")
+                            print("Imaginary part of short-time-evolution constraint vector element is not zero, but " + str(np.round(bzylbval_list.imag,3)) + ".")
                         bzylbval_list = np.real(bzylbval_list)
                         # var_bzylbval_list = np.real(var_bzylbval_list)
                         # fill bbalval_list into constraint vector
@@ -1260,7 +1261,7 @@ class Ansatz:
                                 # var_mzylbval = -1j * varvals_list[nsinx,0]
                                 # check if mbalval is real
                                 if not np.isclose(mzylbval.imag,0):
-                                    print("Imaginary part of ZYLB constraint matrix element is not zero, but " + str(np.round(mzylbval.imag,3)) + ".")
+                                    print("Imaginary part of short-time-evolution constraint matrix element is not zero, but " + str(np.round(mzylbval.imag,3)) + ".")
                                 mzylbval = np.real(mzylbval)
                                 # var_mzylbval = np.real(var_mzylbval)
                                 # add to constraint matrix
@@ -1289,7 +1290,7 @@ class Ansatz:
                                     # var_mzylbval = 1/2 * varvals_list[nsinx,0]
                                     # check if mbalval is real
                                     if not np.isclose(mzylbval.imag,0):
-                                        print("Imaginary part of ZYLB constraint matrix element is not zero, but " + str(np.round(mzylbval.imag,3)) + ".")
+                                        print("Imaginary part of short-time-evolution constraint matrix element is not zero, but " + str(np.round(mzylbval.imag,3)) + ".")
                                     mzylbval = np.real(mzylbval)
                                     # var_mzylbval = np.real(var_mzylbval)
                                     # add to constraint matrix
@@ -1303,11 +1304,11 @@ class Ansatz:
         # ----------------------------------------------------------------
         ### STEP 2 ### add the constraint tensor and vector to the ansatz
         for nsinx in range(len(nshots)):
-            if method in ["BAL","ZYLB"]:
+            if method in ["random-time-traces","short-time-evolution"]:
                 tmpkey = (label, method, nshots[nsinx]) 
                 # self.constraint_tensors[tmpkey] = [[constraint_tensor_list[nsinx,nsamp],constraint_vector_list[nsinx,nsamp],var_constraint_tensor_list[nsinx,nsamp],var_constraint_vector_list[nsinx,nsamp]] for nsamp in range(n_resampling[1])]
                 self.constraint_tensors[tmpkey] = [constraint_tensor_list[nsinx, 0], constraint_vector_list[nsinx, 0], var_constraint_tensor_list[nsinx, 0], var_constraint_vector_list[nsinx, 0]]
-            elif method == "O3KZ":
+            elif method == "generalized-energy-conservation":
                 tmpkey = (label, method, nshots[nsinx]) 
                 if self.ansatz_dissipators is not None:
                     # self.constraint_tensors[tmpkey] = [[constraint_tensor_list[nsinx,nsamp],constraint_tensor_dissipators_list[nsinx,nsamp],var_constraint_tensor_list[nsinx,nsamp],var_constraint_tensor_dissipators_list[nsinx,nsamp]] for nsamp in range(n_resampling[1])]
@@ -1318,7 +1319,7 @@ class Ansatz:
 
     def load_constraint_tensors(
             self,
-            method: str,
+            method: Literal["generalized-energy-conservation", "random-time-traces", "short-time-evolution"],
             nshots: int,
             label: str | None = None,
             MHexact: bool = False,
@@ -1334,7 +1335,7 @@ class Ansatz:
         ----------
         method : str
             Choice of learning method.
-            Options are "O3KZ", "ZYLB" or "BAL".
+            Options are "generalized-energy-conservation", "random-time-traces" or "short-time-evolution".
         nshots : int
             Number of shots for constraint tensors and vectors.
         label : str
@@ -1342,11 +1343,11 @@ class Ansatz:
             Default is method.
         MHexact : bool
             If True, the exact Hamiltonian constraints are loaded (no shot noise on MH)
-            Only used for O3KZ method.
+            Only used for generalized-energy-conservation method.
             Default is False.
         MDexact : bool
             If True, the dissipation correction is evaluated from exact expectation values (no shot noise on MD)
-            Only used for O3KZ method.
+            Only used for generalized-energy-conservation method.
             Default is False.
 
         Returns
@@ -1359,7 +1360,7 @@ class Ansatz:
         if label is None:
             label = method
         ## get key for loading constraint tensors
-        if method in ["O3KZ","ZYLB","BAL"]:
+        if method in ["generalized-energy-conservation","random-time-traces","short-time-evolution"]:
             key = (label,method,nshots)
         else:
             raise ValueError("Method {} not recognized.".format(method))
@@ -1372,30 +1373,30 @@ class Ansatz:
         if MHexact or MDexact:
             exact_constraint_tensors = self.load_constraint_tensors(method=method, nshots=0, label=label)
         ## replace constraint tensors
-        if MHexact and method=="O3KZ":
+        if MHexact and method=="generalized-energy-conservation":
             for inx in range(len(exact_constraint_tensors[method])):
                 constraint_tensors[method][inx][0] = exact_constraint_tensors[method][inx][0]
                 constraint_tensors[method][inx][2] = exact_constraint_tensors[method][inx][2]
-        if MDexact and method=="O3KZ":
+        if MDexact and method=="generalized-energy-conservation":
             for inx in range(len(exact_constraint_tensors[method])):
                 constraint_tensors[method][inx][1] = exact_constraint_tensors[method][inx][1]
                 constraint_tensors[method][inx][3] = exact_constraint_tensors[method][inx][3]
-        if MHexact and MDexact and method=="BAL":
+        if MHexact and MDexact and method=="random-time-traces":
             constraint_tensors[method] = exact_constraint_tensors[method]
         #-----------------------------------------------------
         return constraint_tensors
 
     def learn(
             self,
-            learn_method: str,
+            learn_method: Literal["generalized-energy-conservation", "random-time-traces", "short-time-evolution"],
             parametrizations: list | None = None,
             learn_label: str = "learn",
             nshots: int = -1,
-            scale_method: str | None = None,
+            scale_method: Literal["random-time-traces", "short-time-evolution"] | None = None,
             scale_label: str = "scale",
             nshots_scale: int | None = None,
             scale_factor: int = 1,
-            diss_method: str | None = None, 
+            diss_method: Literal["random-time-traces", "short-time-evolution"] | None = None,
             diss_label: str = "diss",
             nshots_diss: int | None = None,
             normalize_constraints: bool = False,
@@ -1403,7 +1404,6 @@ class Ansatz:
             MDexact: bool = False,
             MSexact: bool = False,
             num_cpus: int = 1,
-            exclude_lowest_solutions: int = 0,
             ) -> None:
         """
         Learn the coefficients of the ansatz operator.
@@ -1415,7 +1415,7 @@ class Ansatz:
         ----------
         learn_method : str
             Choice of learning method.
-            Options are "O3KZ", "BAL" or "ZYLB".
+            Options are "generalized-energy-conservation", "random-time-traces" or "short-time-evolution".
         parametrizations : list of Parametrization objects
             Parametrizations used for learning.
             None is equivalent to a free parametrization.
@@ -1424,12 +1424,12 @@ class Ansatz:
             Default is "learn".
         nshots : int
             Number of shots used to estimate each constraint tensor elements. (nshots=ntimes*nshots_per_time).
-            For ZYLB entries, each expectation value is estimated with nshots shots.
-            For integration in O3KZ, BAL entries, the number of shots at each time step equals nshots/ntimes.
+            For short-time-evolution entries, each expectation value is estimated with nshots shots.
+            For integration in generalized-energy-conservation, random-time-traces entries, the number of shots at each time step equals nshots/ntimes.
             Default is ``-1``.
         scale_method : str 
             If set, the scale is reconstructed from the data set using the given method.
-            Options are "BAL" or "ZYLB"
+            Options are "random-time-traces" or "short-time-evolution"
             Default is None.
         scale_label : str, optional
             Label of the constraint tensors used for scale reconstruction.
@@ -1443,7 +1443,7 @@ class Ansatz:
             Default is ``1``.
         diss_method : str
             If set, the dissipation is reconstructed from the data set using the given method.
-            Options are "BAL" or "ZYLB"
+            Options are "random-time-traces" or "short-time-evolution"
             Default is None.
         diss_label : str, optional
             Label of the constraint tensors used for dissipation learning.
@@ -1458,24 +1458,19 @@ class Ansatz:
             Default is False.
         MHexact : bool, optional
             If True, the exact tensor is used for learning (no shot noise on MH)
-            Only used for O3KZ method.
+            Only used for generalized-energy-conservation method.
             Default is False.
         MDexact : bool, optional
             If True, the dissipation correction is evaluated from exact expectation values (no shot noise on MD)
-            Only used for O3KZ method.
+            Only used for generalized-energy-conservation method.
             Default is False
         MSexact : bool
             If True, the scale correction is evaluated from exact expectation values (no shot noise on Mscale)
-            Only used for O3KZ method.
+            Only used for generalized-energy-conservation method.
             Default is False.
         num_cpus : int 
             Number of cpus used for parallelization.
             Default is 1.
-        exclude_lowest_solutions : int, optional
-            Number of lowest solutions to exclude from the result for the O3KZ learning method.
-            E.g. if exclude_lowest_solutions=1, we are solving for the second-lowest singular value.
-            This can be useful if there exists a conserved quantity that should be excluded.
-            Default is 0.
         """
         if scale_method is not None and nshots_scale is None:
             nshots_scale = nshots
@@ -1501,6 +1496,7 @@ class Ansatz:
         ### STEP 2 ### get sample indices for resampling rows of constraint tensors (only rows of tensors for learning are sampled)
         constraint_sample_indices, jackknife_inflation_factors = self.get_constraint_sample_indices(label=learn_label)
         self.constraint_sample_indices = constraint_sample_indices
+        self.jackknife_inflation_factors = jackknife_inflation_factors
         #------------------------------------------------------------
         ### STEP 3 ### solve learning equation including the overall scale (sequential or parallel)
         if num_cpus == 1:
@@ -1544,15 +1540,12 @@ class Ansatz:
         # store result in ansatz
         self.result[(learn_method, nshots)] = result
 
-
-
-
     def learn_sampled_coefficients(
         self,
         constraint_tensors_tuple: list,
         parametrizations: list,
         ) -> dict:
-        """
+        f"""
         Return the learning result for given constraint tensors.
 
         The result depends on the given sample of constraint tensors,
@@ -1565,8 +1558,8 @@ class Ansatz:
             Constraint tensors as a tuple of 3 dictionaries.
             The first dictionary are the constraint tensors for learning.
             The second dictionary are the constraint tensors for scale reconstruction.
-            The third dictionary are the constraint tensors for dissipation learning. (O3KZ method only)
-            The keys of each dictionary can be any of "O3KZ", "ZYLB" or "BAL".
+            The third dictionary are the constraint tensors for dissipation learning. (generalized-energy-conservation method only)
+            The keys of each dictionary can be any of "generalized-energy-conservation", "random-time-traces" or "short-time-evolution"..
         parametrizations : list of Parametrization objects
             List of parametrizations to be used for learning.
 
@@ -1650,7 +1643,7 @@ class Ansatz:
             Ansatz operator.
         constraint_tensors : dict
             Dictionary of key:constraint_tensor pairs.
-            keys can be any of "O3KZ", "BAL" or "ZYLB".
+            keys can be any of "generalized-energy-conservation", "random-time-traces" or "short-time-evolution".
             If there is more than one key, constraint tensors are stacked vertically (along the first axis).
         parametrization : Parametrization
             Parametrization for the ansatz operator.
@@ -1751,7 +1744,7 @@ class Ansatz:
         ----------
         constraint_tensors : dict
             Dictionary of key:constraint_tensor pairs.
-            keys can be any of "O3KZ", "BAL" or "ZYLB".
+            keys can be any of "generalized-energy-conservation", "random-time-traces" or "short-time-evolution".
             All given constraints are used for learning.
             Constraints of different type are stacked vertically (along the first axis).
         parametrization : Parametrization
@@ -1823,7 +1816,7 @@ class Ansatz:
             if self.prior is not None:
                 parametrized_prior = Ansatz.parametrize_prior(self.prior, parametrization_matrices)
                 prior = parametrized_prior
-            ### parametrize dissipation rates for O3KZ method
+            ### parametrize dissipation rates for generalized-energy-conservation method
             if self.ansatz_dissipators is not None:
                 ## parametrize gamma0 (par = G^T @ non-par)
                 if self.gamma0 is not None:
@@ -1863,7 +1856,7 @@ class Ansatz:
                 gamma_opt = gamma_exact
                 no_optimization = True
             # run optimization if needed
-            if any([key=="O3KZ" for key in list(constraint_tensors.keys())]) and len(gamma0)>0 and not no_optimization:
+            if any([key=="generalized-energy-conservation" for key in list(constraint_tensors.keys())]) and len(gamma0)>0 and not no_optimization:
                 gamma_opt, gamma_landscape_grid, gamma_landscape_vals, gamma_landscape_sols = self.get_optimal_gamma(constraint_tensors, gamma0, gamma_bounds, regularization_matrices=regularization_matrices, scale_factor=self.scale_factor, max_nfev=self.gamma_max_nfev, exclude_lowest_solutions=self.exclude_lowest_solutions, save_landscape=self.save_landscape)
         #------------------------------------------------------------
         ### STEP 3 ### get constraint matrix M and vector b
@@ -1871,8 +1864,8 @@ class Ansatz:
         M, b, varM, varb = Ansatz.get_constraint_matrix_and_vector(constraint_tensors, gamma=gamma_opt, scale_factor=self.scale_factor, regularization_matrices=regularization_matrices)
         ## get constraint matrix and vector without scale constraints
         M_noscale = None # TODO: unused variable M_noscale
-        # if len(constraint_tensors.keys())>1 and ("BAL" in constraint_tensors.keys() or "ZYLB" in constraint_tensors.keys()):
-        #     raise ValueError("BAL and ZYLB constraints not implemented yet.")
+        # if len(constraint_tensors.keys())>1 and ("random-time-traces" in constraint_tensors.keys() or "short-time-evolution" in constraint_tensors.keys()):
+        #     raise ValueError("random-time-traces and short-time-evolution constraints not implemented yet.")
         #     M_noscale, b_noscale, varM_noscale, varb_noscale = Ansatz.get_constraint_matrix_and_vector(constraint_tensors, gamma=gamma_opt, scale_factor=0, regularization_matrices=regularization_matrices)
         tm2 = time.time()
         if self.print_timers:
@@ -1987,7 +1980,7 @@ class Ansatz:
         ----------
         constraint_tensors : dict
             Dictionary of key:constraint_tensor pairs.
-            keys can be any of "O3KZ", "BAL" or "ZYLB".
+            keys can be any of "generalized-energy-conservation", "random-time-traces" or "short-time-evolution".
             All given constraints are used for learning.
             Constraints of different type are stacked vertically (along the first axis).
         parametrization : Parametrization
@@ -2061,7 +2054,7 @@ class Ansatz:
         ----------
         constraint_tensors : dict
             Dictionary of key:constraint_tensor pairs.
-            key can be any of "O3KZ", "BAL" or "ZYLB".
+            key can be any of "generalized-energy-conservation", "random-time-traces" or "short-time-evolution".
         gamma0 : np.ndarray
             Initial guess for the dissipation rates used for the iterative solver.
             Default is None.
@@ -2213,7 +2206,7 @@ class Ansatz:
         ----------
         constraint_tensors : dict
             Dictionary of key:constraint_tensor pairs.
-            key can be any of "O3KZ", "BAL" or "ZYLB".
+            key can be any of "generalized-energy-conservation", "random-time-traces" or "short-time-evolution".
         gamma : 1D-array, optional
             Dissipation rates for the dissipation correction.
             Default is None.
@@ -2248,12 +2241,12 @@ class Ansatz:
             b = None
             varb = None
             ## get constraint tensors
-            if key in ["BAL","ZYLB"]:
+            if key in ["random-time-traces","short-time-evolution"]:
                 M = np.multiply(scale_factor,constraint_tensors[key][0])
                 b = np.multiply(scale_factor,constraint_tensors[key][1])
                 varM = np.multiply(scale_factor,constraint_tensors[key][2])
                 varb = np.multiply(scale_factor,constraint_tensors[key][3])
-            elif key == "O3KZ":
+            elif key == "generalized-energy-conservation":
                 M = constraint_tensors[key][0]
                 R = constraint_tensors[key][1]
                 varM = constraint_tensors[key][2]
@@ -2316,7 +2309,7 @@ class Ansatz:
         #------------------------------------------------------------
         ### STEP 3 ### add regularization
         if regularization_matrices is not None: 
-            if "O3KZ" in list(constraint_tensors.keys()):
+            if "generalized-energy-conservation" in list(constraint_tensors.keys()):
                 #TODO add regularization for incoherent terms not implemented
                 regularization_matrix = regularization_matrices[0]
                 M = np.vstack((M,regularization_matrix))
@@ -2483,7 +2476,7 @@ class Ansatz:
         ----------
         constraint_tensors : dict
             Dictionary of key:constraint_tensor pairs.
-            key can be any of "O3KZ", "BAL" or "ZYLB".
+            key can be any of "generalized-energy-conservation", "random-time-traces" or "short-time-evolution".
         parametrization_matrices : list
             List of tuples of parametrization matrices.
             First element is the parametrization matrix for the ansatz_operator.
@@ -2501,8 +2494,8 @@ class Ansatz:
         parametrized_constraint_tensors = {}
         for key in constraint_tensors.keys():
             #------------------------------------------------------------
-            ### OPTION 1 ### BAL and ZYLB method ###
-            if key in ["BAL", "ZYLB"]:
+            ### OPTION 1 ### random-time-traces and short-time-evolution method ###
+            if key in ["random-time-traces", "short-time-evolution"]:
                 tensor = constraint_tensors[key][0]
                 vector = constraint_tensors[key][1]
                 var_tensor = constraint_tensors[key][2]
@@ -2525,8 +2518,8 @@ class Ansatz:
                 # combine tensors and vectors
                 parametrized_tensor_list = [parametrized_tensor, vector, parametrized_var_tensor, var_vector]
             #------------------------------------------------------------
-            ### OPTION 2 ### O3KZ method ###
-            elif key == "O3KZ":
+            ### OPTION 2 ### generalized-energy-conservation method ###
+            elif key == "generalized-energy-conservation":
                 tensor = constraint_tensors[key][0]
                 tensor_diss = constraint_tensors[key][1]
                 var_tensor = constraint_tensors[key][2]
@@ -2612,12 +2605,12 @@ class Ansatz:
         operator_unscaled : QuantumOperator
             Unscaled operator for which to calculate the overall scale.
         constraint_tensors_scale : dict
-            constraint tensors for the overall scale (either "BAL" or "ZYLB")
+            constraint tensors for the overall scale (either "random-time-traces" or "short-time-evolution")
             constraint_tensors[0] is the constraint matrix
             constraint_tensors[1] is the constraint vector
         dissipators : list of Dissipators, optional
             (Scaled) learned Dissipators for dissipation correction
-            used for the O3KZ methods.
+            used for the generalized-energy-conservation methods.
             Default is None.
 
         Returns
@@ -2634,8 +2627,8 @@ class Ansatz:
         if len(list(constraint_tensors_scale.keys())) > 1:
             raise ValueError("Only one constraint tensor type is allowed for learning the overall scale.")
         method_scale = list(constraint_tensors_scale.keys())[0]
-        if method_scale not in ["BAL"]:
-            raise ValueError("method_scale is {}, but only BAL is implemented.".format(method_scale))
+        if method_scale not in ["random-time-traces"]:
+            raise ValueError("method_scale is {}, but only random-time-traces is implemented.".format(method_scale))
         #--------------------------------------------------------
         ### STEP 1 ### get constraint matrix M and vector b
         Mtot = constraint_tensors_scale[method_scale][0]
@@ -2856,7 +2849,7 @@ class Ansatz:
         """ 
         Return all possible constraint operators for given bases.
 
-        Returns all possible constraint operators for BAL or ZYLB method,
+        Returns all possible constraint operators for random-time-traces or short-time-evolution method,
         that can be measured in given bases.
 
         Parameters
@@ -2906,7 +2899,7 @@ class Ansatz:
         """
         Returns required bases for given constraints.
 
-        Used for BAL or ZYLB method.
+        Used for random-time-traces or short-time-evolution method.
 
         Parameters
         ----------
@@ -2976,7 +2969,7 @@ class Ansatz:
         Each constraint tensor is normalized by the maximum norm of the rows of M.
         This makes sure that different constraint tensors have the same contribution to the 
         full constraint matrix M and constraint vector b.
-        TODO: Only impelemented for BAL method so far.
+        TODO: Only impelemented for random-time-traces method so far.
 
         Parameters
         ----------
@@ -2991,8 +2984,8 @@ class Ansatz:
             where keys are the learning methods and values are the normalized constraint tensors.
         """
         for key in constraint_tensors.keys():
-            ## for BAL method
-            if key == "BAL":
+            ## for random-time-traces method
+            if key == "random-time-traces":
                 for inx in range(len(constraint_tensors[key])):
                     M = constraint_tensors[key][inx][0]
                     b = constraint_tensors[key][inx][1]
@@ -3036,13 +3029,13 @@ class Ansatz:
                     combined_constraint_tensors[key] = tmp_tensor
                 else:   
                     # concatenate constraint tensors according to their type
-                    if key == "O3KZ":
+                    if key == "generalized-energy-conservation":
                         combined_tensor = combined_constraint_tensors[key]
                         combined_tensor[0] = np.concatenate((combined_tensor[0],tmp_tensor[0]),axis=0)
                         combined_tensor[1] = np.concatenate((combined_tensor[1],tmp_tensor[1]),axis=0)
                         combined_tensor[2] = np.concatenate((combined_tensor[2],tmp_tensor[2]),axis=0)
                         combined_tensor[3] = np.concatenate((combined_tensor[3],tmp_tensor[3]),axis=0)
-                    elif key in ["ZYLB","BAL"]:
+                    elif key in ["short-time-evolution","random-time-traces"]:
                         combined_tensor = combined_constraint_tensors[key]
                         combined_tensor[0] = np.concatenate((combined_tensor[0],tmp_tensor[0]),axis=0)
                         combined_tensor[1] = np.concatenate((combined_tensor[1],tmp_tensor[1]),axis=0)
@@ -3056,7 +3049,7 @@ class Ansatz:
 
     def get_measurement_settings(
             self, 
-            method: str,
+            method: Literal["generalized-energy-conservation", "random-time-traces", "short-time-evolution"],
             constraints: list,
             nshots: int,
             suggested_measurement_bases: list | None = None
@@ -3071,7 +3064,7 @@ class Ansatz:
         ----------
         method : str
             The learning method for which the data is generated.
-            Options are "O3KZ", "BAL" or "ZYLB".
+            Options are "generalized-energy-conservation", "random-time-traces" or "short-time-evolution".
         constraints : list
             list of Constraints for which to generate the constraint tensor and vector,
             where each constraint contains:
@@ -3081,7 +3074,7 @@ class Ansatz:
                     times at which the constraint is evaluated
                 - constraint_operator (QuantumOperator)
                     operator for which the expectation value is calculated
-                    If method is "O3KZ" constraint_operator is not used.
+                    If method is "generalized-energy-conservation" constraint_operator is not used.
                 - nshots_ratio_integrand (float) [default: 1]
                     Ratio of number of shots used for each time step in the integrand,
                     compared to the number of shots used at the end points.
@@ -3175,7 +3168,7 @@ class Ansatz:
 
     def get_nruns(
             self, 
-            method: str, 
+            method: Literal["generalized-energy-conservation", "random-time-traces", "short-time-evolution"],
             constraints: list, 
             nshots: int, 
             suggested_measurement_bases: list | None = None,
@@ -3190,7 +3183,7 @@ class Ansatz:
         ----------
         method : str
             The learning method for which the data is generated.
-            Options are "O3KZ", "BAL" and "ZYLB".
+            Options are "generalized-energy-conservation", "random-time-traces" and "short-time-evolution".
         constraints : list
             List of Constraints for which to generate the constraint tensor and vector.
         nshots : int
@@ -3230,25 +3223,25 @@ class Ansatz:
         where the rows of the constraint tensors are chosen according to constraint_sample_indices
         for each constraint tensor type.
         NOTE: This function takes a lot of RAM (for large constraint tensors).
-        NOTE: When sampling constraints, in the case of BAL constraints, the constraints for different 
+        NOTE: When sampling constraints, in the case of random-time-traces constraints, the constraints for different 
         constraint operators are not statistically independent (come from the same measurement).
 
         Parameters
         ----------
         constraint_tensors : dict
             Dictionary of key:constraint_tensor pairs.
-            key can be any of "O3KZ", "ZYLB" or "BAL".
+            key can be any of "generalized-energy-conservation", "short-time-evolution" or "random-time-traces".
         constraint_sample_indices : dict
             Dictionary of key:indices pairs.
-            key can be any of "O3KZ", "ZYLB" or "BAL".
+            key can be any of "generalized-energy-conservation", "short-time-evolution" or "random-time-traces".
             indices is a list of indices for sampling the rows ("constraints") of the constraint tensors.
         constraint_tensors_scale : dict, optional
             Additional constraints used for scale reconstruction.
-            keys can be "BAL" or "ZYLB".
+            keys can be "random-time-traces" or "short-time-evolution".
             Default is None.
         constraint_tensors_diss : dict, optional
             Additional constraints used for separate dissipation learning.
-            keys can be "BAL" or "ZYLB".
+            keys can be "random-time-traces" or "short-time-evolution".
             Default is None.
 
         Returns
@@ -3257,7 +3250,7 @@ class Ansatz:
             Sampled constraint tensors as a tuple of 3 dictionaries.
             The first dictionary are the constraint tensors for learning.
             The second dictionary are the constraint tensors for scale reconstruction.
-            The third dictionary are the constraint tensors for dissipation learning. (O3KZ method only)
+            The third dictionary are the constraint tensors for dissipation learning. (generalized-energy-conservation method only)
         """
         unsampled_tensors = [constraint_tensors, constraint_tensors_scale, constraint_tensors_diss]
         #--------------------------------------------------------
@@ -3304,7 +3297,7 @@ def get_times(
     Creates multiple lists of times that can be used to define constraints for learning.
     Each constraint consists of a list of times, where the first element is the
     initial time and the last element is the final time of the simulation.
-    Times in between are used for approximating the time-integrals required for the BAL or O3KZ method.
+    Times in between are used for approximating the time-integrals required for the random-time-traces or generalized-energy-conservation method.
 
     Parameters
     ----------
