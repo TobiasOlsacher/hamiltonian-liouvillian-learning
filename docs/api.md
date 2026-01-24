@@ -74,6 +74,17 @@ Simulates quantum dynamics and measurements. Evolves quantum states according to
 - `rotating_frame`: Optional rotating frame transformation
 - `measurement_error`: Optional measurement error model
 
+**Key methods:**
+- `simulate(initial_state, measurement_settings, save_data=False, no_output=True)`: Simulates a quantum experiment and returns measurement data as DataSet.
+  
+  **Parameters:**
+  - `initial_state` (QuantumState): Initial state of the experiment.
+  - `measurement_settings` (list): List of MeasurementSetting objects for the experiment.
+  - `save_data` (bool, optional): If `True`, all data is also added to the DataSet of `self`. Default is `False`.
+  - `no_output` (bool, optional): If `True`, no output is printed. Default is `True`.
+  
+  **Returns:** `DataSet` - Data set containing the measurement data
+
 ### measurement_setting
 
 #### `MeasurementSetting`
@@ -154,6 +165,45 @@ Defines the ansatz (parameterized form) for the Hamiltonian or Liouvillian to be
 - `constraints`: List of Constraint objects
 - `constraint_tensors`: Precomputed constraint tensors
 - `result`: Dictionary of Result objects from learning
+
+**Key methods:**
+- `get_constraint_tensors(constraints, method, nshots=-1, required_terms=None, evaluate_variance=False, Gaussian_noise=False, use_exact_initial_values=False, min_nshots_per_term=1, label=None, print_timers=False)`: Calculate constraint tensors for learning. Adds constraint tensor and vector to the ansatz object. If n_resampling is set, saves constraint_tensors_samples instead of constraint_tensors.
+  
+  **Parameters:**
+  - `constraints` (list): List of Constraint objects for which to generate constraint tensors.
+  - `method` (str): Method for which to generate the constraint tensor and vector. Options are `"generalized-energy-conservation"`, `"random-time-traces"`, or `"short-time-evolution"`.
+  - `nshots` (int or list, optional): Number of shots used to estimate expectation values. For `short-time-evolution`, each expectation value is estimated using `nshots` number of measurements. For integration in `generalized-energy-conservation` and `random-time-traces`, the number of measurements at each time step equals `nshots/ntimes`. If `nshots=0`, exact expectation values are used. If `nshots=-1`, all available measurements are used. If `nshots` is a list, `get_constraint_tensors()` is called recursively for each value. Note: For `short-time-evolution` method, `nshots` is set to `0` at `t=0`. Default is `-1`.
+  - `required_terms` (tuple, optional): Required terms to be measured for the given states and times. `required_terms` is a tuple of dicts of `(state,time):qop` pairs, where `qop` is the QuantumOperator to be measured at the given state and time. `required_terms[0]` is the required terms for the endpoints. `required_terms[1]` is the required terms for the integrand. If `None`, the required terms are determined automatically. Default is `None`.
+  - `evaluate_variance` (bool, optional): If `True`, evaluates the variance of the constraint tensors. Default is `False`.
+  - `Gaussian_noise` (bool, optional): If `True`, the exact expectation values with added Gaussian noise with variance `var/nshots` are used for the constraint tensors, instead of using the sampled expectation values. Default is `False`.
+  - `use_exact_initial_values` (bool, optional): If `True`, expectation values at `t=0` are evaluated exactly. Default is `False`.
+  - `min_nshots_per_term` (int, optional): Minimum number of shots required for estimating expectation values. If the number of shots is smaller than `min_nshots_per_term`, then the corresponding expectation value and variance are set to `np.nan`. Default is `1`.
+  - `label` (str, optional): Label added to the key under which the constraint tensor and vector are saved. The key is set to `(label, method, nshots[nsinx])`. Default is `method`.
+  - `print_timers` (bool, optional): If `True`, print timers for different steps in the function. Default is `False`.
+  
+  **Returns:** `None` (constraint tensors are stored in `ansatz.constraint_tensors` dictionary, keyed by `(label, method, nshots)`)
+
+- `learn(learn_method, parametrizations=None, learn_label="learn", nshots=-1, scale_method=None, scale_label="scale", nshots_scale=None, scale_factor=1, diss_method=None, diss_label="diss", nshots_diss=None, normalize_constraints=False, MHexact=False, MDexact=False, MSexact=False, num_cpus=1)`: Learn the coefficients of the ansatz operator from constraint tensors and add the solution to `ansatz.result`. 
+  
+  **Parameters:**
+  - `learn_method` (str): Choice of learning method. Options are `"generalized-energy-conservation"`, `"random-time-traces"`, or `"short-time-evolution"`.
+  - `parametrizations` (list, optional): List of Parametrization objects used for learning. `None` is equivalent to a free parametrization.
+  - `learn_label` (str, optional): Label of the constraint tensors used for learning. Default is `"learn"`.
+  - `nshots` (int): Number of shots used to estimate each constraint tensor element. For `short-time-evolution`, each expectation value is estimated with `nshots` shots. For integration in `generalized-energy-conservation` and `random-time-traces`, the number of shots at each time step equals `nshots/ntimes`. Default is `-1`.
+  - `scale_method` (str, optional): If set, the scale is reconstructed from the data set using the given method. Options are `"random-time-traces"` or `"short-time-evolution"`. Default is `None`.
+  - `scale_label` (str, optional): Label of the constraint tensors used for scale reconstruction. Default is `"scale"`.
+  - `nshots_scale` (int, optional): Number of measurement shots used for scale reconstruction. Default is `nshots`.
+  - `scale_factor` (float): Factor by which the scale constraints are multiplied. Only used if `scale_method` is not `None`. Default is `1`.
+  - `diss_method` (str, optional): If set, the dissipation is reconstructed from the data set using the given method. Options are `"random-time-traces"` or `"short-time-evolution"`. Default is `None`.
+  - `diss_label` (str, optional): Label of the constraint tensors used for dissipation learning. Default is `"diss"`.
+  - `nshots_diss` (int, optional): Number of measurement shots used for dissipation learning. Default is `nshots`.
+  - `normalize_constraints` (bool, optional): If `True`, each row in (M,b) is normalized by the maximum norm of the row of M. Note: This option only applies to the constraint tensors used for learning, not to the scale reconstruction and the dissipation learning. Default is `False`.
+  - `MHexact` (bool, optional): If `True`, the exact tensor is used for learning (no shot noise on MH). Only used for `generalized-energy-conservation` method. Default is `False`.
+  - `MDexact` (bool, optional): If `True`, the dissipation correction is evaluated from exact expectation values (no shot noise on MD). Only used for `generalized-energy-conservation` method. Default is `False`.
+  - `MSexact` (bool, optional): If `True`, the scale correction is evaluated from exact expectation values (no shot noise on Mscale). Only used for `generalized-energy-conservation` method. Default is `False`.
+  - `num_cpus` (int): Number of CPUs used for parallelization. Default is `1`.
+  
+  **Returns:** `None` (results are stored in `ansatz.result` dictionary, keyed by `(learn_method, nshots)`)
 
 ### ansatz_parametrization
 
