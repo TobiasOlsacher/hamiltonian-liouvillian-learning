@@ -5,9 +5,11 @@ Welcome to the **hamiltonian-liouvillian-learning** documentation!
 This project provides tools for learning quantum Hamiltonians and Liouvillians from measurement data.
 
 The code is based on the references:
-- Olsacher et al Hamiltonian and Liouvillian learning in weakly-dissipative quantum many-body systems (2025) Quantum Sci. Technol. 10 015065
-- Kraft et al Bounded-Error Quantum Simulation via Hamiltonian and Lindbladian Learning (2026) arXiv:2511.23392 
-
+- Olsacher et al. Hamiltonian and Liouvillian learning in weakly-dissipative quantum many-body systems. *Quantum Sci. Technol. 10 015065* (2025)
+- Kraft et al. Bounded-Error Quantum Simulation via Hamiltonian and Lindbladian Learning. *arXiv:2511.23392*  (2026) 
+- Evans et al. Scalable Bayesian Hamiltonian learning. *arXiv:1912.07636* (2019)  	
+<!-- - França et al. Efficient and robust estimation of many-qubit Hamiltonians. *Nat Commun 15, 311* (2024)  -->
+<!-- - Zubida et al. Optimal short-time measurements for Hamiltonian learning. *arXiv:2108.08824* (2021) -->
 ---
 
 ## Table of Contents
@@ -23,7 +25,7 @@ The code is based on the references:
 
 ## Introduction
 
-This project provides multiple techniques for learning a Hamiltonian or Liouvillian from measurement data.
+This project provides multiple tools for learning a Hamiltonian or Liouvillian from measurement data.
 
 ---
 

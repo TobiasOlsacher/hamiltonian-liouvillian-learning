@@ -1,6 +1,6 @@
 # Hamiltonian Liouvillian Learning
 
-> Hamiltonian and Liouvillian learning in weakly-dissipative quantum many-body systems.
+> Hamiltonian and Liouvillian learning in weakly-dissipative quantum many-body systems and bounded-error quantum simulation.
 
 
 [![Tests](https://github.com/TobiasOlsacher/hamiltonian-liouvillian-learning/actions/workflows/tests.yml/badge.svg)](https://github.com/TobiasOlsacher/hamiltonian-liouvillian-learning/actions)
@@ -20,10 +20,9 @@ The package allows you to:
 Example notebooks can be found in the ``../examples`` folder.
 
 Relevant references are:
-- Olsacher et al. *Hamiltonian and Liouvillian learning in weakly-dissipative quantum many-body systems* (2025)
-- Kraft et al. *Bounded-Error Quantum Simulation via Hamiltonian and Lindbladian Learning* (2026)
-<!-- - ``França et al. Efficient and robust estimation of many-qubit Hamiltonians (2024)``  -->
-<!-- - ``Evans et al. Scalable Bayesian Hamiltonian learning (2019)`` -->
+- Olsacher et al. Hamiltonian and Liouvillian learning in weakly-dissipative quantum many-body systems. *Quantum Sci. Technol. 10 015065* (2025)
+- Kraft et al. Bounded-Error Quantum Simulation via Hamiltonian and Lindbladian Learning. *arXiv:2511.23392*  (2026) 
+- Evans et al. Scalable Bayesian Hamiltonian learning. *arXiv:1912.07636* (2019)  
 
 ---
 
