@@ -14,11 +14,11 @@ This package allows you to:
 - Learn the Hamiltonian and Lindblad operators from measurement data using different learning methods from the literature.
 - Calculate error bounds for quantum observables from the uncertainty in the parameters of the learned Hamiltonian and Lindblad operators.
 
-Example notebooks can be found in the ``../examples`` folder.
+Example notebooks can be found in the [../examples](../examples) folder.
 
 Relevant references are:
 - Olsacher et al. Hamiltonian and Liouvillian learning in weakly-dissipative quantum many-body systems. *Quantum Sci. Technol. 10 015065* (2025)
-- Kraft et al. Bounded-Error Quantum Simulation via Hamiltonian and Lindbladian Learning. *arXiv:2511.23392*  (2026) 
+- Kraft et al. Bounded-Error Quantum Simulation via Hamiltonian and Lindbladian Learning. *arXiv:2511.23392* (2026) 
 - Evans et al. Scalable Bayesian Hamiltonian learning. *arXiv:1912.07636* (2019)  
 
 ---
