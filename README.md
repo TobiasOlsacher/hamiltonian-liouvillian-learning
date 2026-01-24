@@ -14,7 +14,9 @@ This package allows you to:
 - Learn the Hamiltonian and Lindblad operators from measurement data using different learning methods from the literature.
 - Calculate error bounds for quantum observables from the uncertainty in the parameters of the learned Hamiltonian and Lindblad operators.
 
-Example notebooks can be found in the [../examples](../examples) folder.
+The documentation is [here](../docs/index.md).
+Example notebooks are found in [../examples](../examples).
+
 
 Relevant references are:
 - Olsacher et al. Hamiltonian and Liouvillian learning in weakly-dissipative quantum many-body systems. *Quantum Sci. Technol. 10 015065* (2025)
