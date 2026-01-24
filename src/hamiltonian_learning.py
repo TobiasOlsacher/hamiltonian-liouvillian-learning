@@ -61,7 +61,6 @@ class Result:
         self.gamma_exact = kwargs.get("gamma_exact", None)   # if given, gamma is fixed to gamma_exact and no optimization is performed
         ## Hamiltonian
         self.operator_learned = kwargs.get("operator_learned", None)   # list of dimensions parametrizations*samples
-        self.Qoperator_learned = kwargs.get("Qoperator_learned", None)   # list of dimensions parametrizations*samples
         self.learning_error = kwargs.get("learning_error", None)  # learning error for given learning method (parallel to c")
         self.learning_error_noscale = kwargs.get("learning_error_noscale", None)  # learning error for non-scale constraints
         self.svd_vals = kwargs.get("svd_vals", None)   # list of different parametrizations
@@ -260,8 +259,6 @@ class Constraint:
         name = "Constraint: psi0={}, op={}, times={}, ratio={}".format(state_str, con_op_str, time_str, ratio_str)
         return name
 
-
-
 class Ansatz:
     """
     Ansatz for Hamiltonian or Liouvillian learning.
@@ -309,10 +306,11 @@ class Ansatz:
         If None, all results are stored (default).
     result : dict
         Dictionary where each value is a Result object containing the results of the learning.
+    plotdata : dict
+        Dictionary containing data for plotting.
     print_timers : bool
         If True, print timers during learning.
         Default is False
-
     save_landscape : bool
         If True, saves the landscape of the optimization over disspation rates.
         Default is False
@@ -330,7 +328,6 @@ class Ansatz:
         from the variance of the constraint tensors.
         NOTE: This requires evaluate_variances==True in the get_constraint_tensors() method.
         Default is False.
-
     n_resampling_constraints ((float,int)) [default: (0,1)]
         parameters for resampling constraints.
         n_resampling_constraints[0] is the fraction of constraints used for resampling.
@@ -340,53 +337,6 @@ class Ansatz:
     resampling_constraints_jackknife (bool) [default: False]
         If True, n_resampling_constraints[1] is replaced by the required number for full jackknife resampling, 
         and resampling_constraints_replace is set to False.
-
-
-
-        
-        - learning_method (str)
-            Learning method ("ZYLB", "BAL" or "LZHx" for integer x>=1).
-
-
-        - n_resampling_measurements ((float,int)) [default: (0,1)]
-            parameters for resampling measurements (with replacement).
-            n_resampling_measurements[0] is the fraction of measurements used for resampling.
-            n_resampling_measurements[1] is the number of resampling measurements.
-        - resampling_measurements_replace (bool) [default: False]
-            If True, resampling measurements is done with replacement.
-        - resampling_measurements_jackknife (bool) [default: False]
-            If True, n_resampling_measurements[1] are replaced by the required number for full jackknife resampling, 
-            and resampling_measurements_replace is set to False.
-        # - constraint_sample_indices (array) 
-        #     Indices of constraints used for resampling.
-        - constraint_operators (list of QuantumOperator objects)
-            Constraint operators used for the learning.
-            Required for learning using BAL or ZYLB method.
-        - initial_states (list of QuantumStates)
-            List of initial states used for the learning. 
-            Each state is a QuantumState object, 
-            where state.excitations is a bitstring of length Nions.
-            For example ["000", "001", "010"] etc. for Nions=3.
-        - simulation_times (list of list of floats)
-            List of simulation times used for the learning.
-            Each element of the list is a list of floats, e.g. [[0.1,0.2,0.3],[0.1,0.2,0.3]].
-
-        - plotdata (dict)
-            Dictionary containing data for plotting.
-        - constraint_tensors_samples (dict)
-            Dictionary of key:constraint_tensor_samples pairs.
-            keys are (label, method, nshots), 
-            where method in ["O3KZi", "BAL", etc.] and 
-            nshots is the number of shots used for the constraint tensor 
-            and label is in ["learn", "scale"] by default.
-            constraint_tensor_samples is the list of len(n_resampling_constraints[1]) samples of the constraint tensors.
-        - constraint_tensors_nruns (dict)
-            Dictionary of key:nruns pairs.
-            keys are (label, method, nshots), 
-            where method in ["O3KZi", "BAL", etc.] and 
-            nshots is the number of shots used for the constraint tensor 
-            and label is in ["learn", "scale"] by default.
-            nruns is the number of runs used for estimating constraint_tensor_samples[key]
     """
     def __init__(
             self, 
@@ -416,6 +366,81 @@ class Ansatz:
             ):
         """
         Initialize an Ansatz.
+
+        Parameters
+        ----------
+        Nions : int
+            Number of qubits in the system that generates the data.
+        ansatz_operator : QuantumOperator object
+            Ansatz for the Hamiltonian of the system. 
+            All coefficients are set to ``1`` by default.
+        ansatz_dissipators : list of Dissipators
+            Ansatz for the Dissipators of the Liouvillian of the system.
+        parametrization : list of Parametrization objects
+            List of parametrizations for the ansatz.
+        data_set : DataSet
+            Measurement data used for learning. 
+        constraints : list of Constraint objects
+            list of Constraint objects used for the learning
+        constraint_tensors : dict, optional
+            Constraint tensors used for learning.
+            The keys of the dict are (method, nshots) for "LZHx" method and (method, nshots, ntimes) for "ZYLB" and "BAL" method.
+            The values of the dict are lists of constraint tensors.
+        gamma_bounds : tuple of 1D arrays
+            Bounds for the optimal gamma.
+            If not None, the optimal gamma is refined using a nonlinear solver.
+            Default is None.
+        gamma0 : 1D array
+            Initial value for the optimal gamma for the iterative solver.
+            If None, the iterative solver is not used.
+            Default is None
+        gamma_exact : 1D array 
+            If given, gamma is fixed to gamma_exact and no optimization is performed.
+            Default is None.
+        gamma_max_nfev : int
+            Maximum number of function evaluations for the solver during Dissipation correction.
+            Default is ``1000``.
+        prior : tuple of arrays, optional
+            Prior distribution required for Bayesian learning.
+            Prior[0] is the mean of the free ansatz parameters
+            and Prior[1] is the covariance matrix of the free ansatz parameters.
+            Default is None.
+        result_keys : list of str
+            List of keys to choose what is stored in the result dictionary.
+            If None, all results are stored (default).
+        result : dict
+            Dictionary where each value is a Result object containing the results of the learning.
+        plotdata : dict
+            Dictionary containing data for plotting.
+        print_timers : bool
+            If True, print timers during learning.
+            Default is False
+        save_landscape : bool
+            If True, saves the landscape of the optimization over disspation rates.
+            Default is False
+        exclude_lowest_solutions : int, optional
+            Number of lowest solutions to exclude from the result for the LZH or O3KZi learning methods.
+            E.g. if exclude_lowest_solutions is ``1``, we are solving for the second-lowest singular value.
+            This can be useful if there exists a conserved quantity that should be excluded.
+            Default is ``0``.
+        scale_factor : float
+            Factor by which the scale constraints are multiplied.
+            Only used if scale_method is not None.
+            Default is ``1``.
+        get_variance_of_coefficients_from_variance_of_constraint_tensors : bool, optional
+            If True, also estimates the variance of the learned coefficients
+            from the variance of the constraint tensors.
+            NOTE: This requires evaluate_variances==True in the get_constraint_tensors() method.
+            Default is False.
+        n_resampling_constraints ((float,int)) [default: (0,1)]
+            parameters for resampling constraints.
+            n_resampling_constraints[0] is the fraction of constraints used for resampling.
+            n_resampling_constraints[1] is the number of resampling constraints.
+        resampling_constraints_replace (bool) [default: False]
+            If True, resampling constraints is done with replacement.
+        resampling_constraints_jackknife (bool) [default: False]
+            If True, n_resampling_constraints[1] is replaced by the required number for full jackknife resampling, 
+            and resampling_constraints_replace is set to False.
         """
         self.Nions = Nions
         self.ansatz_operator = ansatz_operator
@@ -1527,11 +1552,6 @@ class Ansatz:
             For LZHx, ZYLB, O3KZd entries, each expectation value is estimated with nshots shots.
             For integration in O3KZi, BAL entries, the number of shots at each time step equals nshots/ntimes.
             Default is ``-1``.
-        normalize_constraints : bool, optional
-            If True, each row in (M,b) is normalized by the maximum norm of the row of M.
-            NOTE: This option only applies to the constraint tensors used for learning,
-            not to the scale reconstruction and the dissipation learning.
-            Default is False.
         scale_method : str 
             If set, the scale is reconstructed from the data set using the given method.
             Options are "BAL" or "ZYLB"
@@ -1556,6 +1576,11 @@ class Ansatz:
         nshots_diss : int
             Analog to nshots, nshots_diss are number of measurement shots used for dissipation learning.
             Default is nshots.
+        normalize_constraints : bool, optional
+            If True, each row in (M,b) is normalized by the maximum norm of the row of M.
+            NOTE: This option only applies to the constraint tensors used for learning,
+            not to the scale reconstruction and the dissipation learning.
+            Default is False.
         MHexact : bool, optional
             If True, the exact LZH tensor is used for learning (no shot noise on MH)
             Only used for method="O3KZi" or method="O3KZd".
@@ -1576,22 +1601,6 @@ class Ansatz:
             E.g. if exclude_lowest_solutions=1, we are solving for the second-lowest singular value.
             This can be useful if there exists a conserved quantity that should be excluded.
             Default is 0.
-
-
-            - operator_exact (QuantumOperator object) [default: None]
-                Exact Hamiltonian of the system.
-                If given, the corresponding errors (exact, fit) are calculated and stored in the result object.   
-            - prior (tuple of arrays) [default: None]
-                Prior distribution for the free parameters
-                Prior[0] is the mean and Prior[1] is the covariance matrix.
-
-
-            - add_lsq_solution (bool) [default: False]
-                If True, also learns the coefficients using a least squares solver.
-            - get_variance_new (bool) [default: False]
-                If True, also estimates the variance of the learned coefficients
-                from the variance of the constraint tensors.
-                NOTE: This requires evaluate_variances==True in the get_constraint_tensors() method.
         """
         if scale_method is not None and nshots_scale is None:
             nshots_scale = nshots
@@ -1616,6 +1625,7 @@ class Ansatz:
         #------------------------------------------------------------
         ### STEP 2 ### get sample indices for resampling rows of constraint tensors (only rows of tensors for learning are sampled)
         constraint_sample_indices, jackknife_inflation_factors = self.get_constraint_sample_indices(label=learn_label)
+        self.constraint_sample_indices = constraint_sample_indices
         #------------------------------------------------------------
         ### STEP 3 ### solve learning equation including the overall scale (sequential or parallel)
         if num_cpus == 1:
@@ -1637,7 +1647,15 @@ class Ansatz:
             raise NotImplementedError("parallel version requires qutip parfor")
             from qutip import parfor
             print("enter parallel learning, ncpus={}".format(num_cpus))
-            result_dict_list = parfor(parallel_learn_sampled_coefficients, list(range(nsamples_tot)), ansatz=self, constraint_tensors=constraint_tensors, **kwargs)
+            result_dict_list = parfor(parallel_learn_sampled_coefficients, 
+                                    list(range(nsamples_tot)), 
+                                    ansatz=self, 
+                                    constraint_tensors=constraint_tensors, 
+                                    parametrizations=parametrizations, 
+                                    constraint_sample_indices=constraint_sample_indices,
+                                    constraint_tensors_scale=constraint_tensors_scale, 
+                                    constraint_tensors_diss=constraint_tensors_diss, 
+                                    )
         #------------------------------------------------------------
         ### STEP 4 ### store results in result object
         result = Result()
@@ -1650,6 +1668,9 @@ class Ansatz:
             setattr(result, key, result_dict[key])
         # store result in ansatz
         self.result[(learn_method, nshots)] = result
+
+
+
 
     def learn_sampled_coefficients(
         self,
@@ -1691,7 +1712,7 @@ class Ansatz:
             other_result_keys = ["gamma_landscape_grid","gamma_landscape_vals","gamma_landscape_sols","posterior","Gamma_eps","chi2_error","complementary_learning_error","complementary_chi2_error","learning_error_exact","chi2_error_exact","complementary_learning_error_exact","complementary_chi2_error_exact","learning_error_fit","chi2_error_fit","complementary_learning_error_fit","complementary_chi2_error_fit"]
             result_keys += other_result_keys
             # if kwargs["constraint_tensors_scale"] is not None:
-            scale_result_keys = ["Qoperator_learned","operator_learned_scaled","var_operator_learned_scaled","operator_learned_combined","var_operator_learned_combined","solution_of_linear_system_combined","parametrization_matrix_tupel_combined","operator_learned_combined_scaled","var_operator_learned_combined_scaled","dissipators_learned_combined","var_dissipators_learned_combined","learning_error_combined","Theta_combined","Phi_combined","condition_number_combined","error_bound_combined","svd_vals_combined","svd_vecs_combined","learning_error_noscale","learning_error_scale","complementary_learning_error_combined","gamma_landscape_grid_combined","gamma_landscape_vals_combined","gamma_landscape_sols_combined"]
+            scale_result_keys = ["operator_learned_scaled","var_operator_learned_scaled","operator_learned_combined","var_operator_learned_combined","solution_of_linear_system_combined","parametrization_matrix_tupel_combined","operator_learned_combined_scaled","var_operator_learned_combined_scaled","dissipators_learned_combined","var_dissipators_learned_combined","learning_error_combined","Theta_combined","Phi_combined","condition_number_combined","error_bound_combined","svd_vals_combined","svd_vecs_combined","learning_error_noscale","learning_error_scale","complementary_learning_error_combined","gamma_landscape_grid_combined","gamma_landscape_vals_combined","gamma_landscape_sols_combined"]
             result_keys += scale_result_keys
             # if kwargs["constraint_tensors_diss"] is not None:
             diss_result_keys = ["learning_error_validation","operator_learned_diss_separate","var_operator_learned_diss_separate","solution_of_linear_system_diss_separate","parametrization_matrix_tupel_diss_separate","dissipators_learned_separate","var_dissipators_learned_separate","learning_error_diss_separate"]
@@ -1968,7 +1989,7 @@ class Ansatz:
                 no_optimization = True
             # run optimization if needed
             if any([key=="O3KZi" or key=="O3KZd" for key in list(constraint_tensors.keys())]) and len(gamma0)>0 and not no_optimization:
-                gamma_opt, gamma_landscape_grid, gamma_landscape_vals, gamma_landscape_sols = Ansatz.get_optimal_gamma(constraint_tensors, gamma0=gamma0, gamma_bounds=gamma_bounds, return_steps=True, scale_factor=self.scale_factor, save_landscape=self.save_landscape, max_nfev=self.gamma_max_nfev, regularization_matrices=regularization_matrices, exclude_lowest_solutions=self.exclude_lowest_solutions)
+                gamma_opt, gamma_landscape_grid, gamma_landscape_vals, gamma_landscape_sols = self.get_optimal_gamma(constraint_tensors, gamma0, gamma_bounds, regularization_matrices=regularization_matrices, scale_factor=self.scale_factor, max_nfev=self.gamma_max_nfev, exclude_lowest_solutions=self.exclude_lowest_solutions, save_landscape=self.save_landscape)
         #------------------------------------------------------------
         ### STEP 3 ### get constraint matrix M and vector b
         ## get dissipation-corrected constraint matrix and vector
@@ -2144,12 +2165,17 @@ class Ansatz:
         result_dict = self.learn_free_parameters(constraint_tensors=constraint_tensors, parametrization=parametrization) 
         #------------------------------------------------------------
         return result_dict
-
     @staticmethod
     def get_optimal_gamma(
         constraint_tensors, 
-        **kwargs
-        ):
+        gamma0,
+        gamma_bounds,
+        regularization_matrices: tuple[np.ndarray, np.ndarray] | None = None,
+        scale_factor: float = 1,
+        max_nfev: int = 1000,
+        exclude_lowest_solutions: int = 0,
+        save_landscape: bool = False,
+    ) -> tuple[np.ndarray, list[np.ndarray], list[np.ndarray], list[np.ndarray]]:
         """
         Finds optimal dissipation rates for given constraint_tensors.
 
@@ -2161,27 +2187,33 @@ class Ansatz:
         constraint_tensors : dict
             Dictionary of key:constraint_tensor pairs.
             key can be any of "O3KZi","O3KZd","ZYLB","BAL" or "LZHx" for integer x>=1.
-        kwargs:
-            - gamma0 (1D-array) [default: None]
-                Initial guess for the dissipation rates used for the iterative solver.
-            - gamma_bounds (list of tuples) [default: None]
-                Bounds for the dissipation rates.
-                If set, the optimal gamma is found using a nonlinear solver instead of the iterative solver.
-            - return_steps (bool) [default: False]
-                If True, also returns the steps of the iterative procedure.
-            - save_landscape (bool) [default: False]
-                If True, also returns the costfunction landscape.
-            - scale_factor (float) [default: 1]
-                Scale factor for the constraint tensors.
-            - max_nfev (int) [default: 1000]
-                Maximum number of function evaluations for the nonlinear solver.
-            - regularization_matrices (tuple of 2D-arrays) [default: None]
-                Regularization for the ansatz operator.
-                regularization_matrices[0] is the regularization for the coherent terms
-                regularization_matrices[1] is the regularization for the incoherent terms
-            - exclude_lowest_solutions (int) [default: 0]
-                Number of lowest solutions to exclude from the landscape, 
-                e.g. exclude_lowest_solutions=1 we solve for the second lowest solution.
+        gamma0 : np.ndarray
+            Initial guess for the dissipation rates used for the iterative solver.
+            Default is None.
+        gamma_bounds : list of tuples
+            Bounds for the dissipation rates.
+            If set, the optimal gamma is found using a nonlinear solver instead of the iterative solver.
+            Default is None.
+
+
+        regularization_matrices : tuple of 2D-arrays, optional
+            Regularization for the ansatz operator.
+            regularization_matrices[0] is the regularization for the coherent terms
+            regularization_matrices[1] is the regularization for the incoherent terms
+            Default is None.
+        scale_factor (float)
+            Scale factor for the constraint tensors.
+            Default is ``1``.
+        max_nfev : int
+            Maximum number of function evaluations for the nonlinear solver.
+            Default is ``1000``.
+        exclude_lowest_solutions : int
+            Number of lowest solutions to exclude from the landscape, 
+            e.g. exclude_lowest_solutions=1 we solve for the second lowest solution.
+            Default is ``0``.
+        save_landscape : bool 
+            If True, also returns the costfunction landscape.
+            Default is ``False``.
                 
         Returns
         -------
@@ -2197,19 +2229,6 @@ class Ansatz:
             Raw solution of the brute solver.
             Only returned if save_landscape=True.
         """
-        scale_factor = kwargs.get("scale_factor",1)
-        gamma0 = kwargs.get("gamma0",None)
-        gamma_bounds = kwargs.get("gamma_bounds",None)
-        save_landscape = kwargs.get("save_landscape",False)
-        max_nfev = kwargs.get("max_nfev",1000)
-        regularization_matrices = kwargs.get("regularization_matrices",None)
-        exclude_lowest_solutions = kwargs.get("exclude_lowest_solutions",0)
-        #--------------------------------------------------------------
-        if gamma_bounds is None:
-            raise ValueError("gamma_bounds must not be None.")
-        if gamma0 is None:
-            raise ValueError("gamma0 must not be None.")
-        #--------------------------------------------------------------
         ### STEP 1 ### define costfunction for optimizing gamma
         def costfct(gamma):
             M, b, varM, varb = Ansatz.get_constraint_matrix_and_vector(constraint_tensors, gamma=gamma, scale_factor=scale_factor, regularization_matrices=regularization_matrices)
@@ -2227,8 +2246,7 @@ class Ansatz:
         ### brute solver
         gamma_landscape_sols = []
         # save exact solution
-        if gamma0 is not None:
-            gamma_landscape_sols.append(gamma0)
+        gamma_landscape_sols.append(gamma0)
         gamma_landscape_grid = None
         gamma_landscape_vals = None
         if save_landscape:
@@ -2305,9 +2323,9 @@ class Ansatz:
     @staticmethod
     def get_constraint_matrix_and_vector(
             constraint_tensors,
-            gamma=None,
-            scale_factor=1,
-            regularization_matrices=None,
+            gamma = None,
+            scale_factor: float = 1,
+            regularization_matrices = None,
             ):
         """
         Get M and b from constraint tensors.
@@ -2461,7 +2479,9 @@ class Ansatz:
         return M, b, varM, varb
 
     @staticmethod
-    def apply_parametrization(coefficients, parametrization_matrices):
+    def apply_parametrization(coefficients, 
+                            parametrization_matrices,
+                            ) -> np.ndarray:
         """
         Apply parametrization to coefficients.
 
@@ -2503,7 +2523,7 @@ class Ansatz:
         return parametrized_coefficients
 
     @staticmethod
-    def invert_parametrization(learned_parameters,parametrization_matrices): 
+    def invert_parametrization(learned_parameters, parametrization_matrices): 
         """
         Invert parametrization on learned parameters.
 
@@ -2809,7 +2829,14 @@ class Ansatz:
         return operator_scaled, scale_mean, scale_var
 
     @staticmethod
-    def get_cov_of_solution_of_linear_system(c, M, var_M=None, var_b=None, cov_M=None, cov_b=None, print_timers=False):
+    def get_cov_of_solution_of_linear_system(c: np.ndarray, 
+                                            M: np.ndarray, 
+                                            var_M: np.ndarray | None = None, 
+                                            var_b: np.ndarray | None = None, 
+                                            cov_M: np.ndarray | None = None, 
+                                            cov_b: np.ndarray | None = None, 
+                                            print_timers: bool = False,
+                                            ) -> tuple[np.ndarray, np.ndarray]:
         """
         Get variance of solution from variance of M.
 
@@ -2889,11 +2916,7 @@ class Ansatz:
     def get_constraint_sample_indices(
             self,
             label: str  = "learn",
-            # replace: bool = False,
-            # sample_ratio: float = 0,
-            # n_samples: int = 1,
-            # jackknife: bool = False,
-            ):
+            ) -> tuple[dict, dict]:
         """
         Return indices for sampling constraint tensors for errorbars.
 
@@ -2914,18 +2937,6 @@ class Ansatz:
             Other constraint tensors are not sampled, but all rows are used.
             If None, all constraint tensors are sampled.
             Default is ``"learn"``, i.e., only constraint tensors used for learning are sampled (not for scale or dissipation reconstruction).
-        # replace : bool, optional
-        #     If True, the samples are drawn with replacement.
-        #     Default is False.
-        # sample_ratio : float, optional
-        #     Ratio of rows excluded from the constraint tensor for each sample.
-        #     Default is ``0``.
-        # n_samples : int, optional
-        #     Number of samples drawn for each constraint tensor.
-        #     Default is ``1``.
-        # jackknife : bool, optional
-        #     If True, all possible samples for given sample_ratio are drawn.
-        #     Default is False.
             
         Returns
         -------
@@ -2989,7 +3000,10 @@ class Ansatz:
         #-----------------------------------------------------
         return constraint_sample_indices, jackknife_inflation_factors
 
-    def get_constraint_operators_for_bases(self, bases, max_support=None):
+    def get_constraint_operators_for_bases(self, 
+                                        bases: list, 
+                                        max_support: int | None = None,
+                                        ) -> list[QuantumOperator]:
         """ 
         Return all possible constraint operators for given bases.
 
@@ -3036,10 +3050,10 @@ class Ansatz:
 
     def get_bases_for_constraints(
             self, 
-            constraint_operators, 
+            constraint_operators: list[QuantumOperator], 
             bases_given: list | None = None, 
             replace_I: str = "I",
-            ):
+            ) -> tuple[list[str], list[list[str]]]:
         """
         Returns required bases for given constraints.
 
@@ -3106,7 +3120,7 @@ class Ansatz:
         return bases, clique_cover
 
     @staticmethod
-    def normalize_constraint_tensors(constraint_tensors) -> dict:
+    def normalize_constraint_tensors(constraint_tensors: dict) -> dict:
         """
         Normalize the rows of the constraint tensors.
         
@@ -3432,11 +3446,11 @@ class Ansatz:
 ### other functions ###
 ### --------------- ###
 def get_times(
-        alltimes, 
+        alltimes: list | np.ndarray, 
         ntimesteps: int, 
         ntimes: int, 
         split_times: bool = False,
-    ) -> list:
+    ) -> list[list[float]]:
     """
     Get list of times for learning.
 
@@ -3509,7 +3523,7 @@ def get_times(
     #---------------------------------------------------------
     return times
 
-def sort_constraints_by_states_and_times(constraints) -> dict:
+def sort_constraints_by_states_and_times(constraints: list[Constraint]) -> dict:
     """
     Sort constraints by initial state and simulation time.
 
@@ -3600,64 +3614,13 @@ def solve_linear_eq(
     #--------------------------------------------------------
     return sol, err, svd_vals, svd_vecs
 
-def solve_nonlinear_eq(constraint_tensors, **kwargs):
-    """
-    Solves the nonlinear equation for LZHx method with x>=1.
-    # TODO: fix this function 
-
-    Solves the k-th order polynomial equations given by constraint tensors T^{(k)}.
-    Returns solution sol that minimizes 
-    sum_k sum_{i1,...i_k} T^{(k)}_{m,i1,..ik}*sol_i1*...*sol_ik=0 
-    under the condition that ||sol||=1.
-    
-    Parameters
-    ----------
-    constraint_tensors : dict
-        Dictionary of key:constraint_tensor pairs.
-        key can be any of "BAL" or "LZHx" for integer x>=1.
-    c0 : np.array, optional
-        initial guess for the solution
-        Default is np.ones().
-
-    Returns
-    -------
-    np.array
-        solution of the nonlinear equation
-    np.array
-        residual error of the solution (sum_{i1,...i_k} M_{m,i1,..ik}*sol_i1*...*sol_ik)
-    """
-    raise NotImplementedError("This function is not implemented yet.")
-    # get kwargs
-    c0 = kwargs.get("c0",None)
-    # define system of polynomial equations
-    def polynomial_system(c):
-        error = Ansatz.evaluate_learning_error(c, constraint_tensors, combined=True)
-        # concatenate all vecs in errors
-        # errors = np.concatenate(errors)
-        # print("errors1", errors)
-        # add constraint to fix norm of solution to 1
-        error_norm = np.linalg.norm(c)-1
-        # print("error_norm", error_norm)
-        error = np.concatenate((error,[error_norm]))
-        # print("errors",errors)
-        return error
-    def cost(c):
-        return np.real(polynomial_system(c))
-    if c0 is None:
-        keylist = list(constraint_tensors.keys())
-        key0 = keylist[0]
-        cdims = constraint_tensors[key0].shape[1]
-        c0 = np.ones(cdims)
-    sol, err, landscape = uf.minimize(cost,c0)
-    learning_error = Ansatz.evaluate_learning_error(sol, constraint_tensors, combined=True)
-    return sol, learning_error
-
-
-
 ########################
 ### helper functions ###
 ########################
-def parallel_simulate(state, measurement_settings, Qsim):
+def parallel_simulate(state: QuantumState, 
+                measurement_settings: dict[QuantumState, MeasurementSetting], 
+                Qsim: QuantumSimulator,
+                ) -> DataSet:
     """
     Call Qsim.simulate() in parallel.
 
@@ -3681,15 +3644,22 @@ def parallel_simulate(state, measurement_settings, Qsim):
     new_data_set = Qsim.simulate(state, measurement_settings=measurement_settings[state])
     return new_data_set
 
-def parallel_learn_sampled_coefficients(sample_inx, ansatz, constraint_tensors, **kwargs):
-    """
-    TODO: FIX THIS FUNCTION
-    Function used for parallelization in learn_sampled_coefficients method.
-    Parallelization over constraint tensors.
-    Tensors is a tuple of [constraint_tensors, complementary_constraint_tensors].
-    """
-    constraint_sample_indices_tmp = {key: [ansatz.constraint_sample_indices[key][sample_inx]] for key in ansatz.constraint_sample_indices}
-    tensors_samples = Ansatz.draw_constraint_tensor_samples(constraint_tensors, constraint_sample_indices_tmp, constraint_tensors_scale=kwargs["constraint_tensors_scale"], constraint_tensors_diss=kwargs["constraint_tensors_diss"]) 
-    tensors = tensors_samples[0]
-    result_dict = Ansatz.learn_sampled_coefficients(tensors, **kwargs)
-    return result_dict
+# def parallel_learn_sampled_coefficients(sample_inx: int, 
+#                                     ansatz: Ansatz, 
+#                                     constraint_tensors: dict, 
+#                                     parametrizations: list[Parametrization],
+#                                     constraint_sample_indices: dict,
+#                                     constraint_tensors_scale: dict | None = None,
+#                                     constraint_tensors_diss: dict | None = None,
+#                                     ) -> dict:
+#     """
+#     TODO: FIX THIS FUNCTION
+#     Function used for parallelization in learn_sampled_coefficients method.
+#     Parallelization over constraint tensors.
+#     Tensors is a tuple of [constraint_tensors, complementary_constraint_tensors].
+#     """
+#     constraint_sample_indices_tmp = {key: [constraint_sample_indices[key][sample_inx]] for key in constraint_sample_indices}
+#     tensors_samples = Ansatz.draw_constraint_tensor_samples(constraint_tensors, constraint_sample_indices_tmp, constraint_tensors_scale=constraint_tensors_scale, constraint_tensors_diss=constraint_tensors_diss) 
+#     tensors = tensors_samples[0]
+#     result_dict = ansatz.learn_sampled_coefficients(tensors, parametrizations=parametrizations)
+#     return result_dict

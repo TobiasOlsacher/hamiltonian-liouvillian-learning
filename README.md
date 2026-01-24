@@ -15,7 +15,7 @@ This package allows you to:
 - Calculate error bounds for quantum observables from the uncertainty in the parameters of the learned Hamiltonian and Lindblad operators.
 
 The documentation is [here](/docs/index.md).
-Example notebooks are found in [/examples](/examples).
+Example notebooks are in [/examples](/examples).
 
 
 Relevant references are:
