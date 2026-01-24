@@ -91,8 +91,6 @@ class Constraint:
         Initial state of the quantum system.
     simulation_times : list of floats
         List of times at which the quantum system is simulated.
-        For learning method "LZHx" for x=1,2...,
-        only the first and last element of simulation_times are used.
     constraint_operator : QuantumOperator
         Observable to be measured as a constraint.
         The constraint is measured at the first and last element of simulation_times.
@@ -280,7 +278,7 @@ class Ansatz:
         list of Constraint objects used for the learning
     constraint_tensors : dict, optional
         Constraint tensors used for learning.
-        The keys of the dict are (method, nshots) for "LZHx" method and (method, nshots, ntimes) for "ZYLB" and "BAL" method.
+        The keys of the dict are (method, nshots, ntimes).
         The values of the dict are lists of constraint tensors.
     gamma_bounds : tuple of 1D arrays
         Bounds for the optimal gamma.
@@ -315,7 +313,7 @@ class Ansatz:
         If True, saves the landscape of the optimization over disspation rates.
         Default is False
     exclude_lowest_solutions : int, optional
-        Number of lowest solutions to exclude from the result for the LZH or O3KZi learning methods.
+        Number of lowest solutions to exclude from the result for the O3KZ learning method.
         E.g. if exclude_lowest_solutions is ``1``, we are solving for the second-lowest singular value.
         This can be useful if there exists a conserved quantity that should be excluded.
         Default is ``0``.
@@ -384,7 +382,7 @@ class Ansatz:
             list of Constraint objects used for the learning
         constraint_tensors : dict, optional
             Constraint tensors used for learning.
-            The keys of the dict are (method, nshots) for "LZHx" method and (method, nshots, ntimes) for "ZYLB" and "BAL" method.
+            The keys of the dict are (method, nshots, ntimes).
             The values of the dict are lists of constraint tensors.
         gamma_bounds : tuple of 1D arrays
             Bounds for the optimal gamma.
@@ -419,7 +417,7 @@ class Ansatz:
             If True, saves the landscape of the optimization over disspation rates.
             Default is False
         exclude_lowest_solutions : int, optional
-            Number of lowest solutions to exclude from the result for the LZH or O3KZi learning methods.
+            Number of lowest solutions to exclude from the result for the O3KZ learning method.
             E.g. if exclude_lowest_solutions is ``1``, we are solving for the second-lowest singular value.
             This can be useful if there exists a conserved quantity that should be excluded.
             Default is ``0``.
@@ -573,7 +571,7 @@ class Ansatz:
             The QuantumSimulator object used to generate the measurement data.
         method : str
             The learning method for which the data is generated.
-            Options are "O3KZi", "BAL", "ZYLB", "O3KZd" and "LZH".
+            Options are "O3KZ", "BAL" or "ZYLB".
         nshots : int
             (Maximal) number of shots taken for each measurement basis.
             If nshots is ``0``, only exact expectation values are generated.
@@ -636,8 +634,7 @@ class Ansatz:
         ----------
         method : str
             The learning method for which the operator is generated.
-            Options are "O3KZi", "BAL", "ZYLB", "O3KZd" and "LZHx".
-            LZHx adds all data up to order x.
+            Options are "O3KZ", "BAL" or "ZYLB".
         constraint_operators : list of QuantumOperators 
             List of constraint operators used for the learning.
             Required for learning using BAL or ZYLB method.
@@ -652,14 +649,8 @@ class Ansatz:
         ### STEP 1 ### get required operator (depends on ansatz, method and constraints)
         required_operator_endpoints = None
         required_operator_integrand = None
-        ### LZH method
-        if method == "LZH":
-            if self.ansatz_operator is None:
-                raise ValueError("For LZH method ansatz_operator cannot be None.")
-            required_operator_endpoints = self.ansatz_operator
-        #--------
         ### BAL or ZYLB method
-        elif method in ["BAL", "ZYLB"]:
+        if method in ["BAL", "ZYLB"]:
             identity = QuantumOperator(self.Nions, terms={"I"*self.Nions:1})
             required_operator_endpoints = identity
             required_operator_integrand = identity
@@ -685,8 +676,8 @@ class Ansatz:
                             term.remove_zero_coeffs()
                             required_operator_integrand += term
         #--------
-        ### O3KZi or O3KZd method
-        elif method in ["O3KZi","O3KZd"]:
+        ### O3KZ method
+        elif method == "O3KZ":
             required_operator_integrand = QuantumOperator(self.Nions)
             # terms for Hamiltonian
             required_operator_endpoints = self.ansatz_operator.copy()
@@ -727,7 +718,7 @@ class Ansatz:
         ----------
         method : str
             The learning method for which the operator is generated.
-            Options are "O3KZ", "BAL", "ZYLB" and "LZH".
+            Options are "O3KZ", "BAL" or "ZYLB".
         constraints : list of Constraints
             List of Constraint objects to be used for learning.
         
@@ -797,11 +788,11 @@ class Ansatz:
         ----------
         method : str
             Method for which to generate the constraint tensor and vector.
-            Options are "ZYLB", "BAL" or "LZHx" for integer x>=1).
+            Options are "O3KZ", "BAL" or "ZYLB".
         nshots : int or list of ints, optional
             Number of shots used to estimate expectation values.
-            For LZHx, ZYLB, O3KZd entries, each expectation value is estimated using nshots number of measurements.
-            For integration in O3KZi, BAL entries, the number of measurements at each time step equals nshots/ntimes.
+            For ZYLB entries, each expectation value is estimated using nshots number of measurements.
+            For integration in O3KZ, BAL entries, the number of measurements at each time step equals nshots/ntimes.
             If nshots=0, exact expectation values are used.
             If nshots=-1, all available measurements are used. 
             If nshots is a list, get_constraint_tensors() is called recursively for each value.
@@ -866,7 +857,7 @@ class Ansatz:
         #################################
         ### O3KZ method for integrals ###
         #################################
-        if method == "O3KZi":
+        if method == "O3KZ":
             ### STEP 1 ### setup constraint tensors
             # setup constraint tensor for ansatz_operator
             shape = tuple([len(nshots)] + [n_resampling[1]] + [len(constraints)] + [len(self.ansatz_operator.terms.keys())])
@@ -1306,132 +1297,17 @@ class Ansatz:
                                     # var_constraint_tensor_list[nsinx,sinx*len(constraint_operators)+cinx,opinx] = var_mzylbval
                                 opinx += 1
         # -----------------------------------------------------
-        ###################################
-        ### O3KZ method for derivatives ###
-        ###################################
-        elif method == "O3KZd":
-            raise NotImplementedError("Method O3KZd not implemented yet.")
-            # setup constraint tensor for ansatz_operator
-            shape = [len(nshots)] + [len(initial_states)*len(simulation_times)] + [len(self.ansatz_operator.terms.keys())]
-            shape = tuple(shape)
-            constraint_tensor_list = np.zeros(shape, dtype=complex)
-            var_constraint_tensor_list = np.zeros(shape, dtype=complex)
-            constraint_vector_list = [None for inx in range(len(nshots))]
-            var_constraint_vector_list = [None for inx in range(len(nshots))]
-            # setup constraint tensor for ansatz_dissipators
-            if ansatz_dissipators is not None:
-                shape_dissipators = [len(nshots)] + [len(initial_states)*len(simulation_times)] + [len(self.ansatz_operator.terms.keys())] + [len(ansatz_dissipators)]
-                shape_dissipators = tuple(shape_dissipators)
-                constraint_tensor_dissipators_list = np.zeros(shape_dissipators, dtype=complex)
-                var_constraint_tensor_dissipators_list = np.zeros(shape_dissipators, dtype=complex)
-            # evaluate entries of constraint tensors
-            for sinx, state in enumerate(initial_states):
-                for tinx, times in enumerate(simulation_times):
-                    ### coherent terms (Hamiltonian)
-                    for terminx, term in enumerate(self.ansatz_operator.terms.values()):
-                        # expectation values for evaluating derivative
-                        expvals_list = []
-                        varvals_list = []
-                        for time in times:
-                            expvals, varvals = self.data_set.evaluate_observable(state,time,term,nshots=nshots,evaluate_variance=True,Gaussian_noise=Gaussian_noise)
-                            expvals_list.append(expvals)
-                            varvals_list.append(varvals)
-                        expvals_list = np.transpose(expvals_list)
-                        varvals_list = np.transpose(varvals_list)
-                        for nsinx in range(len(nshots)):
-                            o3kzval = estimate_derivative(expvals_list[nsinx],times)
-                            var_o3kzval = 0  #TODO add variance of derivative
-                            # check if mbalval is real
-                            if not np.isclose(o3kzval.imag,0):
-                                print("Imaginary part of O3KZd constraint matrix element is not zero, but " + str(np.round(o3kzval.imag,3)) + ".")
-                            o3kzval = np.real(o3kzval)
-                            var_o3kzval = np.real(var_o3kzval)
-                            # add to constraint matrix
-                            constraint_tensor_list[nsinx,sinx*len(simulation_times)+tinx,terminx] = o3kzval
-                            var_constraint_tensor_list[nsinx,sinx*len(simulation_times)+tinx,terminx] = var_o3kzval
-                    ### terms for dissipators (Lindblad operators)
-                    if ansatz_dissipators is not None:
-                        for terminx, term in enumerate(self.ansatz_operator.terms.values()):
-                            for dissinx, diss in enumerate(ansatz_dissipators):
-                                # required operator for dissipative terms (all term.coeff are 1)
-                                qop_term = QuantumOperator(self.Nions, terms={term.pauli_type: term.coeff})
-                                qop_diss = QuantumOperator(self.Nions, terms={diss.pauli_type: term.coeff})
-                                qop_dissdag = qop_diss.dagger()
-                                term1 = qop_dissdag * qop_term.commutator(qop_diss)
-                                term2 = qop_dissdag.commutator(qop_term) * qop_diss
-                                dissterm = term1 + term2
-                                # #TODO: remove identities
-                                # dissterm = dissterm.remove_identity()
-                                # evaluate expectation values
-                                time = times[0]   # choose first time for evaluating derivative
-                                expvals, varvals = self.data_set.evaluate_observable(state,time,dissterm,nshots=nshots,evaluate_variance=True,Gaussian_noise=Gaussian_noise)
-                                for nsinx in range(len(nshots)):
-                                    var_mo3kzval = 0 # TODO add variance
-                                    mo3kzval = -1/2 * expvals_list[nsinx]
-                                    # check if mbalval is real
-                                    if not np.isclose(mo3kzval.imag,0):
-                                        print("Imaginary part of O3KZd constraint matrix element is not zero, but " + str(np.round(mo3kzval.imag,3)) + ".")
-                                    mo3kzval = np.real(mo3kzval)
-                                    var_mo3kzval = np.real(var_mo3kzval)
-                                    # add to constraint matrix
-                                    constraint_tensor_dissipators_list[nsinx,sinx*len(simulation_times)+tinx,terminx,dissinx] = mo3kzval
-                                    var_constraint_tensor_dissipators_list[nsinx,sinx*len(simulation_times)+tinx,terminx,dissinx] = var_mo3kzval
-        # -----------------------------------------------------
-        ##################
-        ### LZH method ###
-        ##################
-        elif method[0:3] == "LZH":
-            raise ValueError("LZH method not implemented yet (has to be checked).")
-            order = int(method[3:])
-            # setup constraint tensor and vector
-            shape = tuple([len(nshots)] + [len(initial_states)*len(simulation_times)] + [len(self.ansatz_operator.terms.keys())]*order)
-            constraint_tensor_list = np.zeros(shape, dtype=complex)
-            var_constraint_tensor_list = np.zeros(shape, dtype=complex)
-            constraint_vector_list = [None for inx in range(len(nshots))]
-            var_constraint_vector_list = [None for inx in range(len(nshots))]
-            for sinx, state in enumerate(initial_states):
-                for tinx, times in enumerate(simulation_times):
-                    shape = [len(nshots)] + [len(self.ansatz_operator.terms.keys())]*order
-                    constraint_tensor = np.zeros(shape, dtype=complex)
-                    var_constraint_tensor = np.zeros(shape, dtype=complex)
-                    # loop over product of terms in ansatz operator (for LZHx for x>1)
-                    for term in it.product(enumerate(self.ansatz_operator.terms.keys()),repeat=order):
-                        term_keys = [term_key for opinx, term_key in term]
-                        opinxs = [opinx for opinx, term_key in term]
-                        # get the required product operator
-                        prod = math.prod([self.ansatz_operator.terms[term_key] for term_key in term_keys])
-                        if prod.is_identity():
-                            continue
-                        # set start and end time
-                        time1 = simulation_times[tinx][0]
-                        time2 = simulation_times[tinx][-1]
-                        # get expectation values from data set
-                        exp2_list, var2_list = self.data_set.evaluate_observable(state,time2,[prod],nshots=nshots,evaluate_variance=True,Gaussian_noise=Gaussian_noise,use_exact_initial_values=use_exact_initial_values)
-                        exp1_list, var1_list = self.data_set.evaluate_observable(state,time1,[prod],nshots=nshots,evaluate_variance=True,Gaussian_noise=Gaussian_noise,use_exact_initial_values=use_exact_initial_values)
-                        lzhval_list = np.subtract(exp2_list, exp1_list)
-                        var_lzhval_list = np.add(var2_list, var1_list)  
-                        for nsinx in range(len(nshots)):
-                            inxtuple = tuple([nsinx] + opinxs)
-                            constraint_tensor[inxtuple] = lzhval_list[nsinx]
-                            var_constraint_tensor[inxtuple] = var_lzhval_list[nsinx]
-                    for nsinx in range(len(nshots)):
-                        constraint_tensor_list[nsinx,sinx*len(simulation_times)+tinx] = constraint_tensor[nsinx]
-                        var_constraint_tensor_list[nsinx,sinx*len(simulation_times)+tinx] = var_constraint_tensor[nsinx]
         else:
             raise ValueError("Method {} not recognized.".format(method))
         # ----------------------------------------------------------------
         # ----------------------------------------------------------------
         ### STEP 2 ### add the constraint tensor and vector to the ansatz
         for nsinx in range(len(nshots)):
-            if method[:3] == "LZH":
-                tmpkey = (label, method, nshots[nsinx])
-                # self.constraint_tensors[tmpkey] = [[constraint_tensor_list[nsinx,nsamp], var_constraint_tensor_list[nsinx,nsamp]] for nsamp in range(n_resampling[1])]
-                self.constraint_tensors[tmpkey] = [constraint_tensor_list[nsinx, 0], var_constraint_tensor_list[nsinx, 0]]
-            elif method in ["BAL","ZYLB"]:
+            if method in ["BAL","ZYLB"]:
                 tmpkey = (label, method, nshots[nsinx]) 
                 # self.constraint_tensors[tmpkey] = [[constraint_tensor_list[nsinx,nsamp],constraint_vector_list[nsinx,nsamp],var_constraint_tensor_list[nsinx,nsamp],var_constraint_vector_list[nsinx,nsamp]] for nsamp in range(n_resampling[1])]
                 self.constraint_tensors[tmpkey] = [constraint_tensor_list[nsinx, 0], constraint_vector_list[nsinx, 0], var_constraint_tensor_list[nsinx, 0], var_constraint_vector_list[nsinx, 0]]
-            elif method in ["O3KZi","O3KZd"]:
+            elif method == "O3KZ":
                 tmpkey = (label, method, nshots[nsinx]) 
                 if self.ansatz_dissipators is not None:
                     # self.constraint_tensors[tmpkey] = [[constraint_tensor_list[nsinx,nsamp],constraint_tensor_dissipators_list[nsinx,nsamp],var_constraint_tensor_list[nsinx,nsamp],var_constraint_tensor_dissipators_list[nsinx,nsamp]] for nsamp in range(n_resampling[1])]
@@ -1458,7 +1334,7 @@ class Ansatz:
         ----------
         method : str
             Choice of learning method.
-            Options are "O3KZi","O3KZd","ZYLB","BAL".
+            Options are "O3KZ", "ZYLB" or "BAL".
         nshots : int
             Number of shots for constraint tensors and vectors.
         label : str
@@ -1466,11 +1342,11 @@ class Ansatz:
             Default is method.
         MHexact : bool
             If True, the exact Hamiltonian constraints are loaded (no shot noise on MH)
-            Only used for method="O3KZi" or method="O3KZd".
+            Only used for O3KZ method.
             Default is False.
         MDexact : bool
             If True, the dissipation correction is evaluated from exact expectation values (no shot noise on MD)
-            Only used for method="O3KZi" or method="O3KZd".
+            Only used for O3KZ method.
             Default is False.
 
         Returns
@@ -1483,7 +1359,7 @@ class Ansatz:
         if label is None:
             label = method
         ## get key for loading constraint tensors
-        if method in ["O3KZi","O3KZd","ZYLB","BAL"]:
+        if method in ["O3KZ","ZYLB","BAL"]:
             key = (label,method,nshots)
         else:
             raise ValueError("Method {} not recognized.".format(method))
@@ -1496,11 +1372,11 @@ class Ansatz:
         if MHexact or MDexact:
             exact_constraint_tensors = self.load_constraint_tensors(method=method, nshots=0, label=label)
         ## replace constraint tensors
-        if MHexact and method=="O3KZi":
+        if MHexact and method=="O3KZ":
             for inx in range(len(exact_constraint_tensors[method])):
                 constraint_tensors[method][inx][0] = exact_constraint_tensors[method][inx][0]
                 constraint_tensors[method][inx][2] = exact_constraint_tensors[method][inx][2]
-        if MDexact and method=="O3KZi":
+        if MDexact and method=="O3KZ":
             for inx in range(len(exact_constraint_tensors[method])):
                 constraint_tensors[method][inx][1] = exact_constraint_tensors[method][inx][1]
                 constraint_tensors[method][inx][3] = exact_constraint_tensors[method][inx][3]
@@ -1539,8 +1415,7 @@ class Ansatz:
         ----------
         learn_method : str
             Choice of learning method.
-            Options are "O3KZi", "ZYLB", "BAL" or "LZHx" for integer x>=1.
-            If method is "LZHx", all constraint tensors up to order x are used.
+            Options are "O3KZ", "BAL" or "ZYLB".
         parametrizations : list of Parametrization objects
             Parametrizations used for learning.
             None is equivalent to a free parametrization.
@@ -1549,8 +1424,8 @@ class Ansatz:
             Default is "learn".
         nshots : int
             Number of shots used to estimate each constraint tensor elements. (nshots=ntimes*nshots_per_time).
-            For LZHx, ZYLB, O3KZd entries, each expectation value is estimated with nshots shots.
-            For integration in O3KZi, BAL entries, the number of shots at each time step equals nshots/ntimes.
+            For ZYLB entries, each expectation value is estimated with nshots shots.
+            For integration in O3KZ, BAL entries, the number of shots at each time step equals nshots/ntimes.
             Default is ``-1``.
         scale_method : str 
             If set, the scale is reconstructed from the data set using the given method.
@@ -1582,22 +1457,22 @@ class Ansatz:
             not to the scale reconstruction and the dissipation learning.
             Default is False.
         MHexact : bool, optional
-            If True, the exact LZH tensor is used for learning (no shot noise on MH)
-            Only used for method="O3KZi" or method="O3KZd".
+            If True, the exact tensor is used for learning (no shot noise on MH)
+            Only used for O3KZ method.
             Default is False.
         MDexact : bool, optional
             If True, the dissipation correction is evaluated from exact expectation values (no shot noise on MD)
-            Only used for method="O3KZi" or method="O3KZd".
+            Only used for O3KZ method.
             Default is False
         MSexact : bool
             If True, the scale correction is evaluated from exact expectation values (no shot noise on Mscale)
-            Only used for method="O3KZi" or method="O3KZd".
+            Only used for O3KZ method.
             Default is False.
         num_cpus : int 
             Number of cpus used for parallelization.
             Default is 1.
         exclude_lowest_solutions : int, optional
-            Number of lowest solutions to exclude from the result for the LZH or O3KZi learning methods.
+            Number of lowest solutions to exclude from the result for the O3KZ learning method.
             E.g. if exclude_lowest_solutions=1, we are solving for the second-lowest singular value.
             This can be useful if there exists a conserved quantity that should be excluded.
             Default is 0.
@@ -1691,7 +1566,7 @@ class Ansatz:
             The first dictionary are the constraint tensors for learning.
             The second dictionary are the constraint tensors for scale reconstruction.
             The third dictionary are the constraint tensors for dissipation learning. (O3KZ method only)
-            The keys of each dictionary can be any of "O3KZi", "O3KZd", "ZYLB" or "BAL".
+            The keys of each dictionary can be any of "O3KZ", "ZYLB" or "BAL".
         parametrizations : list of Parametrization objects
             List of parametrizations to be used for learning.
 
@@ -1775,7 +1650,7 @@ class Ansatz:
             Ansatz operator.
         constraint_tensors : dict
             Dictionary of key:constraint_tensor pairs.
-            key can be any of "O3KZi", "O3KZd", "ZYLB", "BAL" or "LZHx" for integer x>=1.
+            keys can be any of "O3KZ", "BAL" or "ZYLB".
             If there is more than one key, constraint tensors are stacked vertically (along the first axis).
         parametrization : Parametrization
             Parametrization for the ansatz operator.
@@ -1876,7 +1751,7 @@ class Ansatz:
         ----------
         constraint_tensors : dict
             Dictionary of key:constraint_tensor pairs.
-            key can be any of "O3KZi","O3KZd","ZYLB","BAL" or "LZHx" for integer x>=1.
+            keys can be any of "O3KZ", "BAL" or "ZYLB".
             All given constraints are used for learning.
             Constraints of different type are stacked vertically (along the first axis).
         parametrization : Parametrization
@@ -1988,7 +1863,7 @@ class Ansatz:
                 gamma_opt = gamma_exact
                 no_optimization = True
             # run optimization if needed
-            if any([key=="O3KZi" or key=="O3KZd" for key in list(constraint_tensors.keys())]) and len(gamma0)>0 and not no_optimization:
+            if any([key=="O3KZ" for key in list(constraint_tensors.keys())]) and len(gamma0)>0 and not no_optimization:
                 gamma_opt, gamma_landscape_grid, gamma_landscape_vals, gamma_landscape_sols = self.get_optimal_gamma(constraint_tensors, gamma0, gamma_bounds, regularization_matrices=regularization_matrices, scale_factor=self.scale_factor, max_nfev=self.gamma_max_nfev, exclude_lowest_solutions=self.exclude_lowest_solutions, save_landscape=self.save_landscape)
         #------------------------------------------------------------
         ### STEP 3 ### get constraint matrix M and vector b
@@ -2112,7 +1987,7 @@ class Ansatz:
         ----------
         constraint_tensors : dict
             Dictionary of key:constraint_tensor pairs.
-            key can be any of "O3KZi", "O3KZd", "ZYLB", "BAL" or "LZHx" for integer x>=1.
+            keys can be any of "O3KZ", "BAL" or "ZYLB".
             All given constraints are used for learning.
             Constraints of different type are stacked vertically (along the first axis).
         parametrization : Parametrization
@@ -2186,7 +2061,7 @@ class Ansatz:
         ----------
         constraint_tensors : dict
             Dictionary of key:constraint_tensor pairs.
-            key can be any of "O3KZi","O3KZd","ZYLB","BAL" or "LZHx" for integer x>=1.
+            key can be any of "O3KZ", "BAL" or "ZYLB".
         gamma0 : np.ndarray
             Initial guess for the dissipation rates used for the iterative solver.
             Default is None.
@@ -2338,7 +2213,7 @@ class Ansatz:
         ----------
         constraint_tensors : dict
             Dictionary of key:constraint_tensor pairs.
-            key can be any of "O3KZi", "O3KZd", "ZYLB", "BAL" or "LZHx" for integer x>=1.
+            key can be any of "O3KZ", "BAL" or "ZYLB".
         gamma : 1D-array, optional
             Dissipation rates for the dissipation correction.
             Default is None.
@@ -2373,15 +2248,12 @@ class Ansatz:
             b = None
             varb = None
             ## get constraint tensors
-            if key=="LZH1":
-                M = constraint_tensors[key][0]
-                varM = constraint_tensors[key][1]
-            elif key in ["BAL","ZYLB"]:
+            if key in ["BAL","ZYLB"]:
                 M = np.multiply(scale_factor,constraint_tensors[key][0])
                 b = np.multiply(scale_factor,constraint_tensors[key][1])
                 varM = np.multiply(scale_factor,constraint_tensors[key][2])
                 varb = np.multiply(scale_factor,constraint_tensors[key][3])
-            elif key in ["O3KZi","O3KZd"]:
+            elif key == "O3KZ":
                 M = constraint_tensors[key][0]
                 R = constraint_tensors[key][1]
                 varM = constraint_tensors[key][2]
@@ -2392,8 +2264,6 @@ class Ansatz:
                     M = np.add(M, Mdiss)
                     varMdiss = np.einsum("ijk,k",varR,np.power(gamma,2))
                     varM = np.add(varM, varMdiss)
-            elif key[0:3]=="LZH":
-                raise ValueError("Higher order LZH method not implemented yet.")
             else:
                 raise ValueError("Constraint tensor type {} not recognized.".format(key))
             # add to combined matrix
@@ -2446,7 +2316,7 @@ class Ansatz:
         #------------------------------------------------------------
         ### STEP 3 ### add regularization
         if regularization_matrices is not None: 
-            if "O3KZi" in list(constraint_tensors.keys()):
+            if "O3KZ" in list(constraint_tensors.keys()):
                 #TODO add regularization for incoherent terms not implemented
                 regularization_matrix = regularization_matrices[0]
                 M = np.vstack((M,regularization_matrix))
@@ -2613,7 +2483,7 @@ class Ansatz:
         ----------
         constraint_tensors : dict
             Dictionary of key:constraint_tensor pairs.
-            key can be any of "ZYLB", "BAL" or "LZHx" for integer x>=1.
+            key can be any of "O3KZ", "BAL" or "ZYLB".
         parametrization_matrices : list
             List of tuples of parametrization matrices.
             First element is the parametrization matrix for the ansatz_operator.
@@ -2631,29 +2501,8 @@ class Ansatz:
         parametrized_constraint_tensors = {}
         for key in constraint_tensors.keys():
             #------------------------------------------------------------
-            ### OPTION 1 ### LZHx method for x >= 1 ###
-            if key[0:3]=="LZH":
-                order = int(key[3:])
-                tensor = constraint_tensors[key][0]
-                var_tensor = constraint_tensors[key][1]
-                vector = None
-                # parametrize constraint tensor
-                constraint_tensor_subscripts = "m" + "".join(chr(97 + i) for i in range(0,2*order,2))
-                parametrization_matrix_subscripts = "".join(f",{chr(97 + 2*j)}{chr(97 + 2*j + 1)}" for j in range(order))
-                parametrized_constraint_tensor_subscripts = "m" + "".join(chr(97 + i) for i in range(1,2*order,2))
-                subscripts = f"{constraint_tensor_subscripts}{parametrization_matrix_subscripts}->{parametrized_constraint_tensor_subscripts}"
-                parametrization_matrix_arr = [parametrization_matrix_H]*order
-                parametrization_matrix2_arr = [np.power(parametrization_matrix_H,2)]*order
-                parametrized_tensor = np.einsum(subscripts,tensor,*parametrization_matrix_arr)
-                # parametrize variance of constraint tensor
-                parametrized_var_tensor = None
-                if var_tensor is not None:
-                    parametrized_var_tensor = np.einsum(subscripts,var_tensor,*parametrization_matrix2_arr)
-                # combine tensors 
-                parametrized_tensor_list = [parametrized_tensor, parametrized_var_tensor]
-            #------------------------------------------------------------
-            ### OPTION 2 ### BAL and ZYLB method ###
-            elif key in ["BAL", "ZYLB"]:
+            ### OPTION 1 ### BAL and ZYLB method ###
+            if key in ["BAL", "ZYLB"]:
                 tensor = constraint_tensors[key][0]
                 vector = constraint_tensors[key][1]
                 var_tensor = constraint_tensors[key][2]
@@ -2676,8 +2525,8 @@ class Ansatz:
                 # combine tensors and vectors
                 parametrized_tensor_list = [parametrized_tensor, vector, parametrized_var_tensor, var_vector]
             #------------------------------------------------------------
-            ### OPTION 3 ### O3KZi and O3KZd method ###
-            elif key in ["O3KZi", "O3KZd"]:
+            ### OPTION 2 ### O3KZ method ###
+            elif key == "O3KZ":
                 tensor = constraint_tensors[key][0]
                 tensor_diss = constraint_tensors[key][1]
                 var_tensor = constraint_tensors[key][2]
@@ -3187,7 +3036,7 @@ class Ansatz:
                     combined_constraint_tensors[key] = tmp_tensor
                 else:   
                     # concatenate constraint tensors according to their type
-                    if key in ["O3KZi,O3KZd"]:
+                    if key == "O3KZ":
                         combined_tensor = combined_constraint_tensors[key]
                         combined_tensor[0] = np.concatenate((combined_tensor[0],tmp_tensor[0]),axis=0)
                         combined_tensor[1] = np.concatenate((combined_tensor[1],tmp_tensor[1]),axis=0)
@@ -3222,8 +3071,7 @@ class Ansatz:
         ----------
         method : str
             The learning method for which the data is generated.
-            Options are "O3KZi", "BAL", "ZYLB", "O3KZd" and "LZHx".
-            LZHx adds all data up to order x.
+            Options are "O3KZ", "BAL" or "ZYLB".
         constraints : list
             list of Constraints for which to generate the constraint tensor and vector,
             where each constraint contains:
@@ -3231,10 +3079,9 @@ class Ansatz:
                     initial state of the system
                 - simulation_times (list)
                     times at which the constraint is evaluated
-                    If method=="LZHx", only the first and last element of simulation_times are used.
                 - constraint_operator (QuantumOperator)
                     operator for which the expectation value is calculated
-                    If method in ["O3KZi","O3KZd","LZHx"], constraint_operator is not used.
+                    If method is "O3KZ" constraint_operator is not used.
                 - nshots_ratio_integrand (float) [default: 1]
                     Ratio of number of shots used for each time step in the integrand,
                     compared to the number of shots used at the end points.
@@ -3343,7 +3190,7 @@ class Ansatz:
         ----------
         method : str
             The learning method for which the data is generated.
-            Options are "O3KZi", "BAL" and "ZYLB".
+            Options are "O3KZ", "BAL" and "ZYLB".
         constraints : list
             List of Constraints for which to generate the constraint tensor and vector.
         nshots : int
@@ -3390,10 +3237,10 @@ class Ansatz:
         ----------
         constraint_tensors : dict
             Dictionary of key:constraint_tensor pairs.
-            key can be any of "O3KZi","O3KZd","ZYLB" or "BAL".
+            key can be any of "O3KZ", "ZYLB" or "BAL".
         constraint_sample_indices : dict
             Dictionary of key:indices pairs.
-            key can be any of "O3KZi", "O3KZd", "ZYLB" or "BAL".
+            key can be any of "O3KZ", "ZYLB" or "BAL".
             indices is a list of indices for sampling the rows ("constraints") of the constraint tensors.
         constraint_tensors_scale : dict, optional
             Additional constraints used for scale reconstruction.
@@ -3595,7 +3442,7 @@ def solve_linear_eq(
     #--------------------------------------------------------
     ### STEP 1 ### solve linear equation M*sol=0 using singular value decomposition
     if b is None:
-        # get lowest singular value and right-singular-vector of Mlzh
+        # get lowest singular value and right-singular-vector of M
         u, s, vh = sp.linalg.svd(M, full_matrices=True)
         svd_vals = s
         svd_vecs = [np.transpose(np.conjugate(u)),vh]
