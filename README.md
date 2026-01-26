@@ -12,7 +12,7 @@
 This package allows you to:
 - Generate measurement data from a mock quantum simulation experiment defined by a master equation in Lindblad form (using **QuTiP**).
 - Learn the Hamiltonian and Lindblad operators from measurement data using different learning methods from the literature.
-- Calculate error bounds for quantum observables from the uncertainty in the parameters of the learned Hamiltonian and Lindblad operators.
+<!-- - Calculate error bounds for quantum observables from the uncertainty in the parameters of the learned Hamiltonian and Lindblad operators. -->
 
 The documentation is [here](/docs/index.md).
 Example notebooks are in [/examples](/examples).
