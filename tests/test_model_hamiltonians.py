@@ -79,6 +79,15 @@ class TestGetHamiltonian:
         H = get_hamiltonian(N, terms, add_noise=0.01)
         assert isinstance(H, QuantumOperator)
 
+    def test_get_hamiltonian_add_noise_does_not_mutate_caller(self):
+        """Regression: add_noise must not mutate caller's terms dict."""
+        N = 2
+        terms = {"Bz": np.array([0.1, 0.2])}
+        orig = terms["Bz"].copy()
+        np.random.seed(42)
+        get_hamiltonian(N, terms, add_noise=0.01)
+        np.testing.assert_array_equal(terms["Bz"], orig, "Caller's terms dict was mutated")
+
     def test_get_hamiltonian_flip_left_to_right(self):
         """Test Hamiltonian with flip_left_to_right."""
         N = 2

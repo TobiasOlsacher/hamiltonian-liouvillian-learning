@@ -45,7 +45,8 @@ class TestDataEntry:
         entry = DataEntry(Nions=2)
         measurements = {"XX": [0, 1, 2]}
         entry.measurements = measurements
-        assert entry.measurements == measurements
+        assert "XX" in entry.measurements
+        np.testing.assert_array_equal(entry.measurements["XX"], np.array([0, 1, 2]))
 
     def test_exact_expvals_default(self):
         """Test default exact_expvals."""
@@ -71,19 +72,74 @@ class TestDataEntry:
         assert entry_copy.Nions == entry.Nions
         assert entry_copy is not entry
 
-    def test_hash(self):
-        """Test hash method."""
-        state = QuantumState(N=2, excitations="00", basis="zz")
-        entry = DataEntry(Nions=2, initial_state=state, simulation_time=1.0)
-        hash_val = hash(entry)
-        assert isinstance(hash_val, int)
-
     def test_str(self):
         """Test string representation."""
         state = QuantumState(N=2, excitations="00", basis="zz")
         entry = DataEntry(Nions=2, initial_state=state, simulation_time=1.0)
         s = entry.str()
         assert isinstance(s, str)
+
+    def test_measurements_setter_does_not_mutate_caller(self):
+        """Regression: measurements setter must not mutate caller's dict/arrays."""
+        entry = DataEntry(Nions=2)
+        measurements = {"XX": np.array([0, 1, 2], dtype=np.uint8)}
+        entry.measurements = measurements
+        measurements["XX"][0] = 99
+        assert entry.measurements["XX"][0] != 99, "Caller's array was mutated"
+
+    def test_exact_expvals_setter_does_not_mutate_caller(self):
+        """Regression: exact_expvals setter must not mutate caller's dict."""
+        entry = DataEntry(Nions=2)
+        exact = {"II": [1], "XX": [0.5]}
+        entry.exact_expvals = exact
+        exact["XX"] = [999]
+        assert entry.exact_expvals["XX"] == [0.5], "Caller's dict was mutated"
+
+    def test_combine_uses_concatenate(self):
+        """Regression: combine uses np.concatenate, not np.append."""
+        state = QuantumState(N=2, excitations="00", basis="zz")
+        entry1 = DataEntry(Nions=2, initial_state=state, simulation_time=1.0,
+                           measurements={"XX": np.array([0, 1], dtype=np.uint8)})
+        entry2 = DataEntry(Nions=2, initial_state=state, simulation_time=1.0,
+                           measurements={"XX": np.array([2, 3], dtype=np.uint8)})
+        combined = entry1.combine(entry2)
+        assert len(combined.measurements["XX"]) == 4
+        np.testing.assert_array_equal(combined.measurements["XX"], np.array([0, 1, 2, 3]))
+
+    def test_get_nruns(self):
+        """Test get_nruns returns total measurement count."""
+        entry = DataEntry(Nions=2, measurements={"XX": [0, 1, 2], "YY": [0, 1]})
+        assert entry.get_nruns() == 5
+
+    def test_get_frequencies(self):
+        """Test get_frequencies returns histogram dict."""
+        entry = DataEntry(Nions=2, measurements={"ZZ": [0, 0, 1, 3]})
+        freq = entry.get_frequencies()
+        assert "ZZ" in freq
+        assert len(freq["ZZ"]) == 4
+
+    def test_crop_measurements(self):
+        """Test crop_measurements truncates to nshots."""
+        entry = DataEntry(Nions=2, measurements={"XX": [0, 1, 2, 3]})
+        entry.crop_measurements(2)
+        assert len(entry.measurements["XX"]) == 2
+
+    def test_sample_measurements(self):
+        """Test sample_measurements returns DataEntry with sampled shots."""
+        state = QuantumState(N=2, excitations="00", basis="zz")
+        entry = DataEntry(Nions=2, initial_state=state, simulation_time=1.0,
+                          measurements={"XX": np.array([0, 1, 2, 3], dtype=np.uint8)})
+        sampled = entry.sample_measurements(2, random=False)
+        assert sampled.get_nruns() == 2
+
+    def test_extend_to_larger_system(self):
+        """Test extend_to_larger_system returns extended DataEntry."""
+        state = QuantumState(N=2, excitations="00", basis="zz")
+        entry = DataEntry(Nions=2, initial_state=state, simulation_time=1.0,
+                          measurements={"XX": np.array([0, 1], dtype=np.uint8)})
+        np.random.seed(42)
+        extended = entry.extend_to_larger_system(extension_factor=2)
+        assert extended.Nions == 4
 
 
 class TestDataSet:

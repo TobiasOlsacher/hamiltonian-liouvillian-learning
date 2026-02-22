@@ -63,6 +63,36 @@ class TestParametrizationFunction:
         assert pf_copy.criterion == pf.criterion
         assert pf_copy is not pf
 
+    def test_check_criterion_pauli(self):
+        """Test check_criterion for PauliOperator."""
+        pf = ParametrizationFunction(coherent=True, criterion="XX")
+        from src.pauli_algebra import PauliOperator
+        pop_xx = PauliOperator(N=2, pauli_type="XX", coeff=1.0)
+        pop_yy = PauliOperator(N=2, pauli_type="YY", coeff=1.0)
+        assert pf.check_criterion(pop_xx) is True
+        assert pf.check_criterion(pop_yy) is False
+
+    def test_check_criterion_dissipator(self):
+        """Test check_criterion for Dissipator."""
+        pf = ParametrizationFunction(coherent=False, criterion=["XX", "YY"])
+        diss = Dissipator(N=2, diss_type=("XX", "YY"), coeff=0.1)
+        assert pf.check_criterion(diss) is True
+
+    def test_check_cutoff(self):
+        """Test check_cutoff with range."""
+        pf = ParametrizationFunction(coherent=True, criterion="XX", range=1)
+        from src.pauli_algebra import PauliOperator
+        pop = PauliOperator(N=3, pauli_type="XIX", coeff=1.0)
+        assert pf.check_cutoff(pop) is True
+
+    def test_get_coefficient_free(self):
+        """Test get_coefficient for free parametrization."""
+        pf = ParametrizationFunction(coherent=True, criterion="XX", param_type="free")
+        from src.pauli_algebra import PauliOperator
+        pop = PauliOperator(N=2, pauli_type="XX", coeff=1.0)
+        coeff = pf.get_coefficient(pop)
+        assert coeff == 1.0
+
 
 class TestParametrization:
     """Tests for Parametrization class."""

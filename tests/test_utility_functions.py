@@ -99,6 +99,7 @@ class TestIntegrate:
         integral, neval = integrate(x, y, method='trapz')
         assert isinstance(integral, (int, float))
         assert neval == len(y)
+        assert np.isclose(integral, 1.0/3.0, rtol=1e-4)
 
     def test_integrate_simpson(self):
         """Test integration with Simpson method."""
@@ -106,6 +107,7 @@ class TestIntegrate:
         y = x**2
         integral, neval = integrate(x, y, method='simpson')
         assert isinstance(integral, (int, float))
+        assert np.isclose(integral, 1.0/3.0, rtol=1e-6)
 
     def test_integrate_simpson38(self):
         """Test integration with Simpson 3/8 method."""
@@ -113,6 +115,8 @@ class TestIntegrate:
         y = x**2
         integral, neval = integrate(x, y, method='simpson38')
         assert isinstance(integral, (int, float))
+        # Simpson 3/8 accuracy depends on grid; check reasonable range
+        assert 0.2 < integral < 0.4
 
     def test_integrate_romb(self):
         """Test integration with Romberg method."""
@@ -145,6 +149,8 @@ class TestSimpson38:
         y = x**2
         integral = simpson38(x, y)
         assert isinstance(integral, (int, float))
+        # Simpson 3/8 accuracy depends on grid; check reasonable range
+        assert 0.1 < integral < 0.5
 
 
 class TestEstimateDerivative:

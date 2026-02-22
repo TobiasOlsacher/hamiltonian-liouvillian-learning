@@ -106,14 +106,23 @@ class TestMeasurementSetting:
     def test_exact_observables_setter(self):
         """Test exact_observables setter."""
         state = QuantumState(N=2, excitations="00", basis="zz")
-        qop = QuantumOperator(N=2, terms={"XX": 1.0})
+        qop = QuantumOperator(N=2, terms={"XX": 1.0, "YY": 0.5})
         msetting = MeasurementSetting(
             initial_state=state,
             simulation_time=1.0,
             exact_observables=qop
         )
-        assert msetting.exact_observables == qop
+        # Stored observable should have coeffs=1 (copy is mutated, not original)
+        assert msetting.exact_observables.terms["XX"].coeff == 1.0
         assert msetting.nshots == 0  # Should be set to 0 when exact_observables is set
+
+    def test_exact_observables_does_not_mutate_caller(self):
+        """Regression: passing qop to MeasurementSetting must not mutate caller's object."""
+        state = QuantumState(N=2, excitations="00", basis="zz")
+        qop = QuantumOperator(N=2, terms={"XX": 0.5, "ZZ": 1.0})
+        orig_xx = qop.terms["XX"].coeff
+        MeasurementSetting(initial_state=state, simulation_time=1.0, exact_observables=qop)
+        assert qop.terms["XX"].coeff == orig_xx, "Caller's QuantumOperator was mutated"
 
     def test_exact_observables_and_basis_conflict(self):
         """Test that exact_observables and measurement_basis cannot both be set."""

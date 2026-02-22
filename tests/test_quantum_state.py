@@ -3,8 +3,9 @@ Tests for quantum_state module.
 """
 import pytest
 import numpy as np
-from src.quantum_state import QuantumState
+from src.quantum_state import QuantumState, getQuantumState_QuTip
 from src.pauli_algebra import QuantumOperator, PauliOperator
+from src.data_statistics import DataEntry
 
 
 class TestQuantumState:
@@ -151,6 +152,43 @@ class TestQuantumState:
         state = QuantumState(N=2, excitations="00", basis="zz")
         with pytest.raises(TypeError):
             state.extend_to_larger_system(extension_factor=0)
+
+    def test_is_eigenstate_eigenstate(self):
+        """Test is_eigenstate returns True for eigenstate."""
+        state = QuantumState(N=2, excitations="00", basis="zz")
+        qop = QuantumOperator(N=2, terms={"ZZ": 1.0})
+        assert state.is_eigenstate(qop) is True
+
+    def test_is_eigenstate_non_eigenstate(self):
+        """Test is_eigenstate returns False for non-eigenstate."""
+        state = QuantumState(N=2, excitations="00", basis="zz")
+        state.state_preparation = [["Rx0", np.pi / 2]]
+        qop = QuantumOperator(N=2, terms={"ZZ": 1.0})
+        assert state.is_eigenstate(qop) is False
+
+    def test_get_state_preparation_from_data(self):
+        """Test get_state_preparation_from_data static method."""
+        state = QuantumState(N=2, excitations="00", basis="zz")
+        entry = DataEntry(Nions=2, initial_state=state, simulation_time=0.0)
+        prep = QuantumState.get_state_preparation_from_data(entry, nshots=0)
+        assert isinstance(prep, list)
+        assert len(prep) == 6
+
+    def test_get_mixed_state_from_data(self):
+        """Test get_mixed_state_from_data static method."""
+        state = QuantumState(N=2, excitations="00", basis="zz")
+        entry = DataEntry(Nions=2, initial_state=state, simulation_time=0.0)
+        rho = QuantumState.get_mixed_state_from_data(entry, nshots=0)
+        assert isinstance(rho, QuantumState)
+        assert rho.N == 2
+        assert rho.qutip_state is not None
+
+    def test_getQuantumState_QuTip(self):
+        """Test getQuantumState_QuTip standalone function."""
+        psi = getQuantumState_QuTip(excitations="00", basis="zz")
+        assert psi is not None
+        psi_x = getQuantumState_QuTip(excitations="10", basis="zx")
+        assert psi_x is not None
 
     # def test_split_into_basis(self):
     #     """Test splitting into basis."""

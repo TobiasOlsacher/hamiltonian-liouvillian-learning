@@ -6,7 +6,6 @@ import numpy as np
 from src.hamiltonian_learning import Result, Constraint, Ansatz
 from src.quantum_state import QuantumState
 from src.pauli_algebra import QuantumOperator
-from tqdm import tqdm
 
 
 
@@ -108,7 +107,7 @@ class TestAnsatz:
         """Test Ansatz initialization with dissipators."""
         from src.pauli_algebra import Dissipator
         qop = QuantumOperator(N=2, terms={"XX": 1.0})
-        diss = Dissipator(N=2, diss_type=["XX", "YY"], coeff=0.1)
+        diss = Dissipator(N=2, diss_type=("XX", "YY"), coeff=0.1)
         ansatz = Ansatz(Nions=2, ansatz_operator=qop, ansatz_dissipators=[diss])
         diss_norm = diss.copy()
         diss_norm.coeff = 1

@@ -288,6 +288,17 @@ class TestQuantumOperator:
         qop_diff = qop1 - qop2
         assert np.isclose(qop_diff.terms["XX"].coeff, 2.0)
 
+    def test_split_terms_into_bases(self):
+        """Regression: split_terms_into_bases uses self.N, returns correct structure."""
+        qop = QuantumOperator(N=2, terms={"XX": 1.0, "YY": 0.5, "ZZ": 0.3})
+        bases = ["XX", "YY", "ZZ"]
+        terms_per_basis, non_measurable = qop.split_terms_into_bases(bases)
+        assert isinstance(terms_per_basis, dict)
+        assert isinstance(non_measurable, list)
+        assert "XX" in terms_per_basis and len(terms_per_basis["XX"]) >= 1
+        assert "YY" in terms_per_basis and len(terms_per_basis["YY"]) >= 1
+        assert "ZZ" in terms_per_basis and len(terms_per_basis["ZZ"]) >= 1
+
     def test_mul_scalar(self):
         """Test scalar multiplication."""
         qop = QuantumOperator(N=2, terms={"XX": 2.0})
@@ -449,6 +460,14 @@ class TestHelperFunctions:
         state = "00"
         expval = get_expval_from_Zproduct_state(qop, state)
         assert isinstance(expval, (int, float, complex))
+
+    def test_get_expval_from_Zproduct_state_multi_term(self):
+        """Regression: multi-term qop sums all term contributions."""
+        # ZZ on "00" gives +1, ZZ on "11" gives +1; ZZ on "01" or "10" gives -1
+        qop = QuantumOperator(N=2, terms={"ZZ": 1.0, "II": 0.5})
+        assert np.isclose(get_expval_from_Zproduct_state(qop, "00"), 1.0 + 0.5)
+        assert np.isclose(get_expval_from_Zproduct_state(qop, "11"), 1.0 + 0.5)
+        assert np.isclose(get_expval_from_Zproduct_state(qop, "01"), -1.0 + 0.5)
 
     def test_qop_sum(self):
         """Test quantum operator sum."""
