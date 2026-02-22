@@ -88,15 +88,16 @@ def get_hamiltonian(Nions: int,
     # -----------------------------------
     # ### STEP 2 ### add noise to coeffs
     if add_noise != 0:
+        terms = {k: np.array(v, copy=True) for k, v in terms.items()}
         for fieldstr in fields:
             if fieldstr in terms.keys():
-                terms[fieldstr] = np.array(terms[fieldstr]) + np.multiply(add_noise*np.array(terms[fieldstr]),np.random.randn(Nions))
+                terms[fieldstr] = terms[fieldstr] + np.multiply(add_noise*terms[fieldstr], np.random.randn(Nions))
         for couplingstr in couplings2:
             if couplingstr in terms.keys():
-                terms[couplingstr] = np.array(terms[couplingstr]) + np.multiply(add_noise*np.array(terms[couplingstr]),np.random.randn(Nions,Nions))
+                terms[couplingstr] = terms[couplingstr] + np.multiply(add_noise*terms[couplingstr], np.random.randn(Nions, Nions))
         for couplingstr in couplings3:
             if couplingstr in terms.keys():
-                terms[couplingstr] = np.array(terms[couplingstr]) + np.multiply(add_noise*np.array(terms[couplingstr]),np.random.randn(Nions,Nions,Nions))
+                terms[couplingstr] = terms[couplingstr] + np.multiply(add_noise*terms[couplingstr], np.random.randn(Nions, Nions, Nions))
     # -----------------------------------
     ### STEP 3 ### construct Hamiltonian
     Ham = QuantumOperator(N=Nions)

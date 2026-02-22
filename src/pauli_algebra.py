@@ -1104,20 +1104,18 @@ class QuantumOperator:
         bool
             True if all nonzero terms in self are equal to all nonzero terms in other
         """
-        self_copy = self.copy()
-        other_copy = other.copy()
-        self_copy.remove_zero_coeffs()
-        if isinstance(other, QuantumOperator):
-            other_copy.remove_zero_coeffs()
-            # check if keys are the same
-            if set(self_copy.terms.keys()) != set(other_copy.terms.keys()):
-                return False
-            for key in self_copy.terms:
-                if self_copy.terms[key] != other_copy.terms[key]:
-                    return False
-            return True
-        else:
+        if not isinstance(other, QuantumOperator):
             raise TypeError("quantum_operator.__eq__: other must be a quantum_operator")
+        def is_zero_coeff(coeff):
+            return coeff is not None and np.isclose(coeff, 0)
+        self_keys = {k for k, v in self.terms.items() if not is_zero_coeff(v.coeff)}
+        other_keys = {k for k, v in other.terms.items() if not is_zero_coeff(v.coeff)}
+        if self_keys != other_keys:
+            return False
+        for key in self_keys:
+            if self.terms[key] != other.terms[key]:
+                return False
+        return True
 
     def __ne__(self, 
             other: QuantumOperator
@@ -2483,7 +2481,6 @@ def qop_relvar(qoplist) -> QuantumOperator:
             del relvar.terms[termkey]
     return relvar   
 
-# slow but good
 def get_nullspace(A):
     """ 
     Calculate the nullspace of a matrix A.
@@ -2492,26 +2489,16 @@ def get_nullspace(A):
     ----------
     A : np-array
 
-    Results
+    Returns
     -------
-    np-array
-        the nullspace of the matrix A
+    list of np.ndarray
+        List of 1D arrays, each a basis vector of the nullspace
     """
-    import sympy as symp
-    matrix = symp.Matrix(A)
-    nullspace_sympy = matrix.nullspace()
-    # transform to numpy arrays
-    nullspace = []
-    for vec_sympy in nullspace_sympy:
-        # print("vec_sympy", vec_sympy)
-        vec = np.array(vec_sympy).astype(np.float64)
-        vec = vec.transpose()[0]
-        # print("vec", vec)
-        nullspace.append(vec)
-    # nullspace = np.array(nullspace)
-    # print("nullspace", nullspace)
-    # nullspace = nullspace.transpose()
-    return nullspace
+    from scipy.linalg import null_space
+    ns = null_space(A)
+    if ns.size == 0:
+        return []
+    return [np.asarray(ns[:, i]).flatten() for i in range(ns.shape[1])]
 
 def find_conserved_quantities(qops_list, 
                             ansatz: QuantumOperator | None = None

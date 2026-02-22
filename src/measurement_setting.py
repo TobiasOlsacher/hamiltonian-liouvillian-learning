@@ -115,7 +115,7 @@ class MeasurementSetting:
         # set nshots = 0 if exact_observables is set
         if value is not None:
             self.nshots = 0
-        if value is not None:   
+            value = value.copy()
             value.set_coeffs_one()
         self._exact_observables = value
     ### --------------------------- ###

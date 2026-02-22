@@ -131,18 +131,17 @@ class DataEntry:
         if measurements is not None:
             if not isinstance(measurements, dict):
                 raise TypeError("measurements is not a dict.")
-            for key in measurements.keys():
-                ## transform measurements[key] to a list of unsigned integers
-                if self.Nions <= 8:
-                    measurements[key] = np.array(measurements[key], dtype=np.uint8)
-                elif self.Nions <= 16:
-                    measurements[key] = np.array(measurements[key], dtype=np.uint16)
-                elif self.Nions <= 32:
-                    measurements[key] = np.array(measurements[key], dtype=np.uint32)
-                elif self.Nions <= 64:
-                    measurements[key] = np.array(measurements[key], dtype=np.uint64)
-                else:
-                    raise ValueError("Nions={} is too large (max=64).".format(self.Nions))
+            if self.Nions <= 8:
+                dtype = np.uint8
+            elif self.Nions <= 16:
+                dtype = np.uint16
+            elif self.Nions <= 32:
+                dtype = np.uint32
+            elif self.Nions <= 64:
+                dtype = np.uint64
+            else:
+                raise ValueError("Nions={} is too large (max=64).".format(self.Nions))
+            measurements = {k: np.array(v, dtype=dtype) for k, v in measurements.items()}
         self._measurements = measurements
     @property
     def exact_expvals(self):
@@ -153,11 +152,13 @@ class DataEntry:
         if exact_expvals is not None:
             if not isinstance(exact_expvals, dict):
                 raise TypeError("exact_expvals is not a dict.")
-        # add "I"*Nions term if not there
-        Istr = "I"*self.Nions
-        if Istr not in exact_expvals:
-            exact_expvals[Istr] = [1]
-        self._exact_expvals = exact_expvals
+            exact_expvals = dict(exact_expvals)
+            Istr = "I"*self.Nions
+            if Istr not in exact_expvals:
+                exact_expvals[Istr] = [1]
+            self._exact_expvals = exact_expvals
+        else:
+            self._exact_expvals = exact_expvals
     @property
     def final_state(self):
         return self._final_state
@@ -271,15 +272,15 @@ class DataEntry:
         if other.measurements is not None:
             for key in other.measurements:
                 if key in self.measurements:
-                    data_entry_combined.measurements[key] = np.append(self.measurements[key], other.measurements[key])
+                    data_entry_combined.measurements[key] = np.concatenate([self.measurements[key], other.measurements[key]])
                 else:
-                    data_entry_combined.measurements[key] = other.measurements[key]
+                    data_entry_combined.measurements[key] = other.measurements[key].copy()
         if other.exact_expvals is not None:
             for key in other.exact_expvals:
-                if key in self.exact_expvals:  
-                    data_entry_combined.exact_expvals[key] = np.append(self.exact_expvals[key], other.exact_expvals[key])
+                if key in self.exact_expvals:
+                    data_entry_combined.exact_expvals[key] = np.concatenate([np.atleast_1d(self.exact_expvals[key]), np.atleast_1d(other.exact_expvals[key])])
                 else:
-                    data_entry_combined.exact_expvals[key] = other.exact_expvals[key]
+                    data_entry_combined.exact_expvals[key] = np.atleast_1d(other.exact_expvals[key]).copy()
         if other.final_state is not None:
             data_entry_combined.final_state = other.final_state
         return data_entry_combined

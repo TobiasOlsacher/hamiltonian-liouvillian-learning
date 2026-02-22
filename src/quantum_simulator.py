@@ -983,73 +983,39 @@ def SampleBitstrings_QuTip(qstate: qt.Qobj,
         timers_rot = []
         timers_meas = []
     #--------------------------------
-    old_version = True
-    if old_version:
-        ### STEP 1 ### get probabilities from rotated state
-        measurements = {}
-        # TODO: parallelize this loop???
-        for binx, basis in enumerate(basis_dict.keys()):
-            ## get rotated state
-            tm11 = tm.time()
-            qstate_rot = changeMeasBasis_QuTip(qstate.copy(), basis, measurement_error=measurement_error)
-            tm12 = tm.time()
-            if print_timers:
-                timers_rot.append(tm12-tm11)
-                if binx==len(basis_dict.keys())//10:
-                    pstr_SampleBitstrings_QuTip = "...avg time for rotation: {} [total est: {}]".format(np.mean(timers_rot), np.mean(timers_rot)*len(basis_dict.keys()))
-                    ic(pstr_SampleBitstrings_QuTip)
-            ## get probabilities
-            if qstate.type == "ket":
-                probs = np.abs(qstate_rot.data.toarray().flatten())**2
-            elif qstate.type == "oper":
-                probs = np.real(qstate_rot.diag())
-            # check if probabilities sum to 1
-            probs_sum = np.sum(np.abs(probs))
-            # if np.abs(probs_sum - 1) > 1e-6:
-            #     print("State probabilities sum to {} instead of 1".format(probs_sum))
-            if np.abs(probs_sum - 1) > 1e-2:
-                raise ValueError("State probabilities sum to {} instead of 1".format(probs_sum))
-            # normalize probabilities
-            probs = np.abs(probs)/probs_sum
-            ## get measured bitstrings
-            bitvals = np.random.choice(2**len(basis), size=basis_dict[basis], p=np.flip(probs))
-            measurements[basis] = bitvals
-            tm13 = tm.time()
-            if print_timers:
-                timers_meas.append(tm13-tm12)
-                if binx==len(basis_dict.keys())//10:
-                    pstr_SampleBitstrings_QuTip = "...avg time for sampling: {} [total est: {}]".format(np.mean(timers_meas), np.mean(timers_meas)*len(basis_dict.keys()))
-                    ic(pstr_SampleBitstrings_QuTip)
-        # if print_timers:
-        #     tm2 = tm.time()
-        #     pstr_SampleBitstrings_QuTip = "...time for multiplication: {}".format(tm2-tm1)
-        #     ic(pstr_SampleBitstrings_QuTip)
-    #--------------------------------
-    new_version = False
-    if new_version:
-        for binx, basis in enumerate(basis_dict.keys()):
-            ## get rotated state
-            qstate_rot = changeMeasBasis_QuTip_mesolve(qstate.copy(), basis, measurement_error=measurement_error)
-            ## get probabilities
-            if qstate.type == "ket":
-                probs = np.abs(qstate_rot.data.toarray().flatten())**2
-            elif qstate.type == "oper":
-                probs = np.real(qstate_rot.diag())
-            # check if probabilities sum to 1
-            probs_sum = np.sum(np.abs(probs))
-            # if np.abs(probs_sum - 1) > 1e-6:
-            #     print("State probabilities sum to {} instead of 1".format(probs_sum))
-            if np.abs(probs_sum - 1) > 1e-2:
-                raise ValueError("State probabilities sum to {} instead of 1".format(probs_sum))
-            # normalize probabilities
-            probs = np.abs(probs)/probs_sum
-            ## get measured bitstrings
-            bitvals = np.random.choice(2**len(basis), size=basis_dict[basis], p=np.flip(probs))
-            measurements[basis] = bitvals
-        # if print_timers:
-        #     tm3 = tm.time()
-        #     pstr_SampleBitstrings_QuTip = "...time for mesolve: {}".format(tm3-tm2)
-        #     ic(pstr_SampleBitstrings_QuTip)
+    ### get probabilities from rotated state and sample bitstrings
+    measurements = {}
+    # TODO: parallelize this loop???
+    for binx, basis in enumerate(basis_dict.keys()):
+        ## get rotated state
+        tm11 = tm.time()
+        qstate_rot = changeMeasBasis_QuTip(qstate.copy(), basis, measurement_error=measurement_error)
+        tm12 = tm.time()
+        if print_timers:
+            timers_rot.append(tm12-tm11)
+            if binx==len(basis_dict.keys())//10:
+                pstr_SampleBitstrings_QuTip = "...avg time for rotation: {} [total est: {}]".format(np.mean(timers_rot), np.mean(timers_rot)*len(basis_dict.keys()))
+                ic(pstr_SampleBitstrings_QuTip)
+        ## get probabilities
+        if qstate.type == "ket":
+            probs = np.abs(qstate_rot.data.toarray().flatten())**2
+        elif qstate.type == "oper":
+            probs = np.real(qstate_rot.diag())
+        # check if probabilities sum to 1
+        probs_sum = np.sum(np.abs(probs))
+        if np.abs(probs_sum - 1) > 1e-2:
+            raise ValueError("State probabilities sum to {} instead of 1".format(probs_sum))
+        # normalize probabilities
+        probs = np.abs(probs)/probs_sum
+        ## get measured bitstrings
+        bitvals = np.random.choice(2**len(basis), size=basis_dict[basis], p=np.flip(probs))
+        measurements[basis] = bitvals
+        tm13 = tm.time()
+        if print_timers:
+            timers_meas.append(tm13-tm12)
+            if binx==len(basis_dict.keys())//10:
+                pstr_SampleBitstrings_QuTip = "...avg time for sampling: {} [total est: {}]".format(np.mean(timers_meas), np.mean(timers_meas)*len(basis_dict.keys()))
+                ic(pstr_SampleBitstrings_QuTip)
     #--------------------------------
     if print_timers:
         pstr_SampleBitstrings_QuTip = "exit SampleBitstrings_QuTip()"
