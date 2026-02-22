@@ -1577,7 +1577,7 @@ class QuantumOperator:
             list of terms that cannot be measured in any basis
         """
         terms_nonI = [term for term in self.terms.values() if term.pauli_type!="I"*self.N]
-        all_bases = [basis for basis in bases if basis!="I"*self.pauli_N]
+        all_bases = [basis for basis in bases if basis!="I"*self.N]
         #--------------------------------#
         ### STEP 1 ### split terms into measurable and non-measurable
         terms_per_basis = {basis:[] for basis in all_bases}
@@ -2299,17 +2299,18 @@ def get_expval_from_Zproduct_state(qop,
         qop = QuantumOperator(N=qop.N, terms={qop.pauli_type: qop.coeff})
     elif not isinstance(qop, QuantumOperator):
         raise TypeError("get_expval_from_product_state: qop must be either a PauliOperator or a quantum_operator")
-    pops = qop.terms
-    for pop in pops:
-        # check if pop has a non-z index
-        if "X" in pop or "Y" in pop:
+    expval_total = 0
+    for pstr, pop in qop.terms.items():
+        # check if term has a non-z index
+        if "X" in pstr or "Y" in pstr:
             expval = 0
         else:
             expval = 1
-            for inx in range(len(pop)):
-                if pop[inx] == "Z":
+            for inx in range(len(pstr)):
+                if pstr[inx] == "Z":
                     expval *= -(-1)**int(state[inx])
-    return expval
+        expval_total += pop.coeff * expval
+    return expval_total
 
 def qop_sum(qoplist, 
             axis: int | None = None
