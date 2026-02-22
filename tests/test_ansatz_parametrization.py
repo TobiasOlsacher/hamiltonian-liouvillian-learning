@@ -82,7 +82,8 @@ class TestParametrizationFunction:
         """Test check_cutoff with range."""
         pf = ParametrizationFunction(coherent=True, criterion="XX", range=1)
         from src.pauli_algebra import PauliOperator
-        pop = PauliOperator(N=3, pauli_type="XIX", coeff=1.0)
+        # XIX has range 2 (qubits 0,2); use XXI (range 1) to pass cutoff
+        pop = PauliOperator(N=3, pauli_type="XXI", coeff=1.0)
         assert pf.check_cutoff(pop) is True
 
     def test_get_coefficient_free(self):

@@ -155,12 +155,14 @@ class TestQuantumState:
 
     def test_is_eigenstate_eigenstate(self):
         """Test is_eigenstate returns True for eigenstate."""
+        pytest.importorskip("tqdm")
         state = QuantumState(N=2, excitations="00", basis="zz")
         qop = QuantumOperator(N=2, terms={"ZZ": 1.0})
         assert state.is_eigenstate(qop) is True
 
     def test_is_eigenstate_non_eigenstate(self):
         """Test is_eigenstate returns False for non-eigenstate."""
+        pytest.importorskip("tqdm")
         state = QuantumState(N=2, excitations="00", basis="zz")
         state.state_preparation = [["Rx0", np.pi / 2]]
         qop = QuantumOperator(N=2, terms={"ZZ": 1.0})

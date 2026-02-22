@@ -288,6 +288,7 @@ class QuantumState:
         # -----------------------------------------------
         ### STEP 2 ### apply state preparation
         if apply_state_preparation and self.state_preparation is not None:
+            from src.quantum_simulator import getQuantumGate_QuTip
             state_preparation_QuTip = getQuantumGate_QuTip(self.state_preparation, self.N)
             # check if psi0 is state or density matrix
             if psi0.type == "ket":
@@ -324,6 +325,7 @@ class QuantumState:
         # create qutip quantum state object
         psi0 = self.to_QuTip()
         # create qutip observable object
+        from src.quantum_simulator import to_QuTip
         qop = to_QuTip(observable)
         # check if variance of observable is zero in psi0
         variance = qt.expect(qop**2, psi0) - qt.expect(qop, psi0)**2

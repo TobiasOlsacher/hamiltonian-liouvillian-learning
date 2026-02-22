@@ -810,25 +810,30 @@ def getQuantumGate_QuTip(GateList: list,
     QuTip QuantumOperator
         QuTip unitary product operator
     """
+    def _rotation_gate(axis, angle):
+        """Rx/Ry/Rz via exp(-i angle * sigma/2). Compatible with QuTip 5."""
+        if axis == "x":
+            return (-1j * angle * qt.sigmax() / 2).expm()
+        elif axis == "y":
+            return (-1j * angle * qt.sigmay() / 2).expm()
+        elif axis == "z":
+            return (-1j * angle * qt.sigmaz() / 2).expm()
+        raise ValueError("axis must be x, y, or z")
+
     gates = []
     # get gates as QuTip operators
     for gatetuple in GateList:
         gstr = gatetuple[0]
         gateval = gatetuple[1]
         if gstr[:2] == "Rx":
-            # gateval is a rotation angle
             ioninx = int(gstr[2:])
-            gate = qt.tensor([qt.rx(gateval) if inx==ioninx else qt.identity(2) for inx in range(Nions)])
-            # gate = qt.tensor([qt.rx(gateval) for inx in range(Nions)])
+            gate = qt.tensor([_rotation_gate("x", gateval) if inx==ioninx else qt.identity(2) for inx in range(Nions)])
         elif gstr[:2] == "Ry":
-            # gateval is a rotation angle
             ioninx = int(gstr[2:])
-            gate = qt.tensor([qt.ry(gateval) if inx==ioninx else qt.identity(2) for inx in range(Nions)])
-            # gate = qt.tensor([qt.ry(gateval) for inx in range(Nions)])
+            gate = qt.tensor([_rotation_gate("y", gateval) if inx==ioninx else qt.identity(2) for inx in range(Nions)])
         elif gstr[:2] == "Rz":
-            # gateval is a rotation angle
             ioninx = int(gstr[2:])
-            gate = qt.tensor([qt.rz(gateval) if inx==ioninx else qt.identity(2) for inx in range(Nions)])
+            gate = qt.tensor([_rotation_gate("z", gateval) if inx==ioninx else qt.identity(2) for inx in range(Nions)])
             # gate = qt.tensor([qt.rz(gateval) for inx in range(Nions)])
         elif gstr == "qop":
             # gateval is a quantum operator
@@ -884,9 +889,13 @@ def to_QuTip(operator: QuantumOperator | PauliOperator | Dissipator) -> qt.Qobj:
     # ------------------------------
     ## convert Quantum operator
     if isinstance(operator, QuantumOperator):
-        operator_QuTip = qt.Qobj()
-        for pstr, pop in operator.terms.items():
-            operator_QuTip += pop.coeff * getPauliOp_QuTip(pstr)  
+        terms_list = list(operator.terms.items())
+        if not terms_list:
+            raise ValueError("QuantumOperator has no terms")
+        pstr0, pop0 = terms_list[0]
+        operator_QuTip = pop0.coeff * getPauliOp_QuTip(pstr0)
+        for pstr, pop in terms_list[1:]:
+            operator_QuTip = operator_QuTip + pop.coeff * getPauliOp_QuTip(pstr)  
     # ------------------------------
     ## convert Dissipator    
     if isinstance(operator, Dissipator):
